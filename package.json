@@ -1,0 +1,33 @@
+{
+  "name": "arcox-fleet",
+  "version": "1.0.0",
+  "description": "Zero-Trust Autonomous Enterprise Multi-Agent Fleet on Google Cloud & Gemini with Native ARCOX Economic Layer",
+  "type": "module",
+  "main": "src/index.mjs",
+  "scripts": {
+    "start": "node src/index.mjs",
+    "test:cycle": "node test/run-autonomous-cycle.mjs",
+    "dev": "node --watch src/index.mjs"
+  },
+  "keywords": [
+    "google-cloud",
+    "gemini",
+    "adk",
+    "multi-agent",
+    "arcox",
+    "mcp",
+    "x402",
+    "msca",
+    "arc-network",
+    "devpost"
+  ],
+  "author": "ARCOX Team",
+  "license": "MIT",
+  "dependencies": {
+    "@google/genai": "^2.19.0",
+    "@google-cloud/firestore": "^7.11.0",
+    "express": "^4.21.2",
+    "dotenv": "^16.4.7",
+    "viem": "^2.21.54"
+  }
+}
