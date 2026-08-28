@@ -317,6 +317,12 @@ app.get('/download-thumbnail', (req, res) => {
   res.download(filePath, 'ARCOX_Fleet_Thumbnail.png')
 })
 
+app.get('/download-architecture', (req, res) => {
+  const filePath = path.join(__dirname, '../public/architecture_diagram.png')
+  res.download(filePath, 'ARCOX_Fleet_Architecture_Diagram.png')
+})
+
+
 // 3. Real-time Status API
 app.get('/api/fleet/status', async (req, res) => {
   try {
