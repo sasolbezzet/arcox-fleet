@@ -1,6 +1,7 @@
 /**
  * ARCOX Fleet Orchestrator (Google ADK & GenAI Pattern)
  * Coordinates the Triad Multi-Agent Swarm through an autonomous, closed-loop cycle.
+ * Supports both manual triggers and continuous background autonomous daemon loops.
  */
 
 import { ArcoxApiClient } from './protocols/arcox-api-client.mjs'
@@ -36,15 +37,18 @@ export class FleetOrchestrator {
       mcpClient: this.mcpClient,
       memoryBank: this.memoryBank,
     })
+
+    this.isRunning = false
+    this.daemonTimer = null
   }
 
   /**
    * Run 1 full autonomous closed-loop cycle
    */
-  async runAutonomousCycle() {
-    console.log('================================================================================')
-    console.log('🚀 ARCOX FLEET: STARTING AUTONOMOUS ENTERPRISE MULTI-AGENT CYCLE')
-    console.log('   Target Track: Track 3 - The Fortified Enterprise Fleet')
+  async runAutonomousCycle(triggerSource = 'MANUAL_OR_WEBHOOK') {
+    console.log('\n================================================================================')
+    console.log(`🚀 ARCOX FLEET: AUTONOMOUS CYCLE TRIGGERED [Source: ${triggerSource}]`)
+    console.log(`   Time: ${new Date().toISOString()}`)
     console.log('   Infrastructure: Google Cloud Run & Firestore | Brain: Gemini 3.5 Flash')
     console.log('   Execution Engine: Direct Arc Testnet RPC (5042002) + ARCOX Protocol')
     console.log('================================================================================')
@@ -70,6 +74,7 @@ export class FleetOrchestrator {
 
     const summary = {
       cycleId,
+      triggerSource,
       status: 'SUCCESS',
       durationMs,
       timestamp: new Date().toISOString(),
@@ -88,14 +93,46 @@ export class FleetOrchestrator {
     await this.memoryBank.recordAuditLog({
       action: 'CYCLE_COMPLETED',
       cycleId,
+      triggerSource,
       durationMs,
       summary,
     })
 
     console.log('\n================================================================================')
-    console.log(`✅ CYCLE COMPLETED SUCCESSFULLY in ${durationMs}ms`)
+    console.log(`✅ AUTONOMOUS CYCLE FINISHED [${durationMs}ms] - Agent Swarm resting until next trigger.`)
     console.log('================================================================================\n')
 
     return summary
+  }
+
+  /**
+   * Start autonomous background daemon loop (runs 24/7 on interval)
+   */
+  startAutonomousDaemon(intervalSeconds = 60) {
+    if (this.isRunning) return
+    this.isRunning = true
+
+    console.log(`\n🤖 [Autonomous Daemon] Started! Fleet will trigger automatically every ${intervalSeconds} seconds.`)
+
+    // Run first cycle immediately
+    this.runAutonomousCycle('DAEMON_STARTUP').catch(err => console.error('[Daemon Error]:', err.message))
+
+    this.daemonTimer = setInterval(() => {
+      this.runAutonomousCycle('DAEMON_SCHEDULED_HEARTBEAT').catch(err => {
+        console.error('[Daemon Cycle Error]:', err.message)
+      })
+    }, intervalSeconds * 1000)
+  }
+
+  /**
+   * Stop autonomous daemon loop
+   */
+  stopAutonomousDaemon() {
+    if (this.daemonTimer) {
+      clearInterval(this.daemonTimer)
+      this.daemonTimer = null
+    }
+    this.isRunning = false
+    console.log('[Autonomous Daemon] Stopped.')
   }
 }
