@@ -1,6 +1,6 @@
 /**
  * ARCOX Fleet HTTP Server & Real-Time Interactive Monitoring Dashboard
- * With MP4 Demo Video Hosting and Instant Download
+ * With MP4 Demo Video & Thumbnail Static Hosting
  */
 
 import 'dotenv/config'
@@ -15,7 +15,7 @@ const PORT = process.env.PORT || 8080
 
 app.use(express.json())
 
-// Serve static files (including demo video)
+// Serve static files (including demo video & thumbnail)
 app.use(express.static(path.join(__dirname, '../public')))
 
 const orchestrator = new FleetOrchestrator({
@@ -57,13 +57,16 @@ app.get('/', (req, res) => {
 
       <!-- Action Buttons -->
       <div class="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
-        <a href="/arcox-fleet-demo.mp4" download class="flex-1 md:flex-none px-4 py-2.5 text-xs md:text-sm font-semibold rounded-xl bg-teal-600 hover:bg-teal-500 text-white transition shadow-lg flex items-center justify-center gap-2">
-          <span>📥</span> <span>Download Demo Video (1080p MP4)</span>
+        <a href="/thumbnail.png" download="ARCOX_Fleet_Thumbnail.png" class="flex-1 md:flex-none px-3.5 py-2.5 text-xs md:text-sm font-semibold rounded-xl bg-slate-700 hover:bg-slate-600 text-white transition shadow-lg flex items-center justify-center gap-1.5">
+          <span>🖼️</span> <span>Thumbnail (3:2)</span>
         </a>
-        <button id="btn-toggle-daemon" onclick="toggleDaemon()" class="flex-1 md:flex-none px-4 py-2.5 text-xs md:text-sm font-semibold rounded-xl transition shadow-lg flex items-center justify-center gap-2 bg-rose-600 hover:bg-rose-500 text-white">
+        <a href="/arcox-fleet-demo.mp4" download="ARCOX_Fleet_Demo.mp4" class="flex-1 md:flex-none px-3.5 py-2.5 text-xs md:text-sm font-semibold rounded-xl bg-teal-600 hover:bg-teal-500 text-white transition shadow-lg flex items-center justify-center gap-1.5">
+          <span>📥</span> <span>Demo Video</span>
+        </a>
+        <button id="btn-toggle-daemon" onclick="toggleDaemon()" class="flex-1 md:flex-none px-3.5 py-2.5 text-xs md:text-sm font-semibold rounded-xl transition shadow-lg flex items-center justify-center gap-1.5 bg-rose-600 hover:bg-rose-500 text-white">
           <span id="toggle-icon">⏸</span> <span id="toggle-text">Stop Daemon</span>
         </button>
-        <button id="btn-trigger" onclick="triggerManualCycle()" class="flex-1 md:flex-none px-4 py-2.5 text-xs md:text-sm font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white transition shadow-lg flex items-center justify-center gap-2 active:scale-95">
+        <button id="btn-trigger" onclick="triggerManualCycle()" class="flex-1 md:flex-none px-3.5 py-2.5 text-xs md:text-sm font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white transition shadow-lg flex items-center justify-center gap-1.5 active:scale-95">
           <span>⚡</span> <span>Scan Now</span>
         </button>
       </div>
@@ -190,7 +193,6 @@ app.get('/', (req, res) => {
           document.getElementById('stat-ai-balance').innerText = '$' + (statusRes.aiRouterStatus?.unifiedBalance?.totalConfirmedBalance || '0.00') + ' USDC';
           document.getElementById('stat-daily-limit').innerText = '$' + (statusRes.mscaStatus?.remainingLimitUsdc || '9.5') + ' USDC';
 
-          // Direct live telemetry rendering from latestCycle
           if (statusRes.latestCycle && statusRes.latestCycle.autonomousDecision) {
             const dec = statusRes.latestCycle.autonomousDecision;
             const telem = statusRes.latestCycle.balanceTelemetry || {};
@@ -219,7 +221,6 @@ app.get('/', (req, res) => {
         if (logsRes.ok && logsRes.logs.length > 0) {
           document.getElementById('log-count').innerText = logsRes.logs.length + ' logs recorded';
 
-          // Table render
           const tbody = document.getElementById('logs-table-body');
           tbody.innerHTML = logsRes.logs.map(log => {
             const txHash = log.summary?.autonomousDecision?.executionResult?.txHash || log.details?.result?.txHash || '-';
@@ -254,7 +255,7 @@ app.get('/', (req, res) => {
       if (isRunning) {
         badge.innerText = '● RUNNING (60s)';
         badge.className = 'px-2.5 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 animate-pulse';
-        btn.className = 'flex-1 md:flex-none px-4 py-2.5 text-xs md:text-sm font-semibold rounded-xl transition shadow-lg flex items-center justify-center gap-2 bg-rose-600 hover:bg-rose-500 text-white';
+        btn.className = 'flex-1 md:flex-none px-3.5 py-2.5 text-xs md:text-sm font-semibold rounded-xl transition shadow-lg flex items-center justify-center gap-1.5 bg-rose-600 hover:bg-rose-500 text-white';
         icon.innerText = '⏸';
         text.innerText = 'Stop Daemon';
         intervalStat.innerText = 'Every 60s';
@@ -262,7 +263,7 @@ app.get('/', (req, res) => {
       } else {
         badge.innerText = '⏸ PAUSED';
         badge.className = 'px-2.5 py-0.5 text-xs font-semibold rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30';
-        btn.className = 'flex-1 md:flex-none px-4 py-2.5 text-xs md:text-sm font-semibold rounded-xl transition shadow-lg flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white';
+        btn.className = 'flex-1 md:flex-none px-3.5 py-2.5 text-xs md:text-sm font-semibold rounded-xl transition shadow-lg flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white';
         icon.innerText = '▶';
         text.innerText = 'Start Daemon';
         intervalStat.innerText = 'PAUSED';
@@ -305,10 +306,15 @@ app.get('/', (req, res) => {
 </html>`)
 })
 
-// 2. Direct Video Download Route
+// 2. Direct Downloads Routes
 app.get('/download-demo', (req, res) => {
   const filePath = path.join(__dirname, '../public/arcox-fleet-demo.mp4')
-  res.download(filePath, 'ARCOX_Fleet_Google_Hackathon_Demo.mp4')
+  res.download(filePath, 'ARCOX_Fleet_Demo.mp4')
+})
+
+app.get('/download-thumbnail', (req, res) => {
+  const filePath = path.join(__dirname, '../public/thumbnail.png')
+  res.download(filePath, 'ARCOX_Fleet_Thumbnail.png')
 })
 
 // 3. Real-time Status API
@@ -366,8 +372,6 @@ app.get('/api/fleet/logs', async (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`🌐 ARCOX Fleet Web Dashboard running on port ${PORT}`)
-  console.log(`📡 Daemon State: ${process.env.AUTONOMOUS_DAEMON !== 'false' ? 'ACTIVE (60s)' : 'PAUSED'}`)
-  
   if (process.env.AUTONOMOUS_DAEMON !== 'false') {
     orchestrator.startAutonomousDaemon(Number(process.env.AUTONOMOUS_INTERVAL_SECONDS) || 60)
   }
