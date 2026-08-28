@@ -1,0 +1,13 @@
+file '/home/ubuntu/arcox-fleet/media/frames/slide_1.png'
+duration 35
+file '/home/ubuntu/arcox-fleet/media/frames/slide_2.png'
+duration 40
+file '/home/ubuntu/arcox-fleet/media/frames/slide_3.png'
+duration 50
+file '/home/ubuntu/arcox-fleet/media/frames/slide_4.png'
+duration 45
+file '/home/ubuntu/arcox-fleet/media/frames/slide_5.png'
+duration 35
+file '/home/ubuntu/arcox-fleet/media/frames/slide_6.png'
+duration 20
+file '/home/ubuntu/arcox-fleet/media/frames/slide_6.png'
