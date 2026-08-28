@@ -9,6 +9,8 @@ async function main() {
   const orchestrator = new FleetOrchestrator({
     apiBaseUrl: process.env.ARCOX_API_BASE_URL,
     connectionToken: process.env.ARCOX_AGENT_CONNECTION_TOKEN,
+    privateKey: process.env.AGENT_PRIVATE_KEY,
+    rpcUrl: process.env.ARC_RPC_URL,
     geminiApiKey: process.env.GEMINI_API_KEY,
     projectId: process.env.GCP_PROJECT_ID,
   })

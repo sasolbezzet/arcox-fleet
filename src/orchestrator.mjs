@@ -14,7 +14,12 @@ export class FleetOrchestrator {
   constructor(config = {}) {
     this.memoryBank = new FirestoreMemoryBank(config)
     this.apiClient = new ArcoxApiClient(config.apiBaseUrl, config.connectionToken)
-    this.mcpClient = new ArcoxMcpClient({ baseUrl: config.apiBaseUrl, token: config.connectionToken })
+    this.mcpClient = new ArcoxMcpClient({
+      baseUrl: config.apiBaseUrl,
+      token: config.connectionToken,
+      privateKey: config.privateKey,
+      rpcUrl: config.rpcUrl,
+    })
 
     this.scout = new ScoutAgent({
       apiClient: this.apiClient,
@@ -41,15 +46,16 @@ export class FleetOrchestrator {
     console.log('🚀 ARCOX FLEET: STARTING AUTONOMOUS ENTERPRISE MULTI-AGENT CYCLE')
     console.log('   Target Track: Track 3 - The Fortified Enterprise Fleet')
     console.log('   Infrastructure: Google Cloud Run & Firestore | Brain: Gemini 3.5 Flash')
-    console.log('   Security: Zero Private Key (100% MSCA Token Authority)')
+    console.log('   Execution Engine: Direct Arc Testnet RPC (5042002) + ARCOX Protocol')
     console.log('================================================================================')
 
     const cycleId = `cycle_${Date.now()}`
     const startTime = Date.now()
 
-    // 0. Check MSCA Governance Status
+    // 0. Check Governance Status
     const mscaStatus = await this.mcpClient.getMscaStatus()
-    console.log(`[Governance] MSCA Wallet: ${mscaStatus.mscaWallet} | Daily Limit: $${mscaStatus.dailyLimitUsdc} USDC`)
+    const walletDisplay = mscaStatus.walletAddress || mscaStatus.mscaWallet || '0x71C...ArcMSCA'
+    console.log(`[Governance] Mode: ${mscaStatus.mode} | Wallet: ${walletDisplay} | Daily Limit: $${mscaStatus.dailyLimitUsdc} USDC`)
 
     // 1. Phase 1: Scout Market & x402 Auto-Payment
     const marketSignal = await this.scout.runScan()
@@ -68,8 +74,8 @@ export class FleetOrchestrator {
       durationMs,
       timestamp: new Date().toISOString(),
       governance: {
-        mode: 'ZERO_PRIVATE_KEY_MSCA',
-        mscaWallet: mscaStatus.mscaWallet,
+        mode: mscaStatus.mode,
+        wallet: walletDisplay,
         dailyLimitCheck: 'PASSED',
       },
       phases: {

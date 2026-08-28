@@ -15,6 +15,8 @@ app.use(express.json())
 const orchestrator = new FleetOrchestrator({
   apiBaseUrl: process.env.ARCOX_API_BASE_URL,
   connectionToken: process.env.ARCOX_AGENT_CONNECTION_TOKEN,
+  privateKey: process.env.AGENT_PRIVATE_KEY,
+  rpcUrl: process.env.ARC_RPC_URL,
   geminiApiKey: process.env.GEMINI_API_KEY,
   projectId: process.env.GCP_PROJECT_ID,
 })
@@ -27,7 +29,7 @@ app.get('/', (req, res) => {
     hackathon: 'All Things Agentic Hackathon (Google & Devpost)',
     track: 'Track 3: The Fortified Enterprise Fleet',
     brain: 'Google Gemini 3.5 Flash (@google/genai)',
-    security: 'Zero-Trust MSCA Scoped Tokens (Zero Private Key in runtime)',
+    security: 'Zero-Trust Scoped Limits & Model Armor',
     blockchain: 'Arc Testnet (Chain ID 5042002 | Native Gas: USDC)',
     endpoints: {
       health: 'GET /',
