@@ -1,58 +1,104 @@
-# 🏆 ARCOX Fleet
+# ARCOX Fleet
 
-**Zero-Trust Autonomous Enterprise Multi-Agent Fleet on Google Cloud & Gemini with Native ARCOX Economic Layer**
+Autonomous multi-agent orchestrator for on-chain execution and self-funding AI workflows on the Arc Network.
 
-Built for the **All Things Agentic Hackathon** (Devpost & Google)  
-**Category:** *Track 3: The Fortified Enterprise Fleet*
-
----
-
-## 🌟 Overview
-
-**ARCOX Fleet** is an enterprise-grade multi-agent autonomous system that solves the fundamental challenge of **Agent Economic Autonomy and Zero-Trust Financial Governance**.
-
-Unlike traditional passive chatbots, ARCOX Fleet consists of a **Triad Multi-Agent Swarm** that runs asynchronously in the background:
-1. **🕵️ Scout Agent (Intel & Market Scout):** Detects market opportunities and autonomously overcomes paid paywalls via the **x402 Arc USDC Micropayment Protocol**.
-2. **🧠 Strategist Agent (Cognitive Brain & Governance):** Powered by **Google Gemini 3.5 Flash** with **Zero-Trust Model Armor** (strictly validating daily limits and slippage before execution).
-3. **⚡ Executor & Treasury Agent (DEX & Self-Funding):** Executes native **Quote-Before-Execute** swaps/bridges via **MSCA Wallets (Zero Private Key!)** and maintains fleet compute runway via **ARCOX AI Router Unified Balance Auto-Pay**.
+**Hackathon Track:** Track 3 — The Fortified Enterprise Fleet  
+**Hackathon:** All Things Agentic Hackathon (Google & Devpost)
 
 ---
 
-## 🏗️ Architecture
+## Overview
+
+ARCOX Fleet coordinates three specialized autonomous agents that operate continuously in the background without manual prompts:
+
+1. **Scout Agent:** Scans Arc Testnet pools and settles x402 on-chain USDC memo micropayments for paywalled intelligence data.
+2. **Strategist Agent:** Evaluates financial signals and available ecosystem services using **Google Gemini 3.5 / 2.5 Flash** (`@google/genai`), applying risk guardrails before dispatching actions.
+3. **Executor & Treasury Agent:** Dispatches smart contract calls (DEX Swaps, transfers) via **Viem** directly to Arc Testnet RPC and maintains fleet compute runway through the **ARCOX AI Router Unified Balance** auto-deposit loop.
+
+---
+
+## System Architecture
 
 ```text
-┌─────────────────────────────────────────────────────────────────────────┐
-│                      GOOGLE CLOUD RUN RUNTIME                           │
-│                                                                         │
-│  ┌──────────────────┐    ┌────────────────────┐    ┌─────────────────┐ │
-│  │ 🕵️ Scout Agent   │───▶│ 🧠 Strategist      │───▶│ ⚡ Executor     │ │
-│  │ (x402 Auto-Payer)│    │ (Gemini 3.5 Flash) │    │ & Treasury      │ │
-│  └─────────┬────────┘    └─────────┬──────────┘    └────────┬────────┘ │
-│            │                       │                        │          │
-│            ▼                       ▼                        ▼          │
-│  ┌───────────────────────────────────────────────────────────────────┐ │
-│  │             Google Cloud Firestore (Enterprise Memory Bank)       │ │
-│  └───────────────────────────────────────────────────────────────────┘ │
-└────────────────────────────────────┬────────────────────────────────────┘
-                                     │ (MCP & HTTP)
+┌────────────────────────────────────────────────────────────────────────┐
+│                     ARCOX FLEET ORCHESTRATOR                           │
+│                                                                        │
+│  ┌──────────────────┐    ┌────────────────────┐    ┌────────────────┐ │
+│  │ 1. Scout Agent   │───▶│ 2. Strategist Agent│───▶│ 3. Executor &  │ │
+│  │ (Scan & x402 Pay)│    │ (Gemini Reasoning) │    │    Treasury    │ │
+│  └─────────┬────────┘    └─────────┬──────────┘    └────────┬───────┘ │
+│            │                       │                        │         │
+│            ▼                       ▼                        ▼         │
+│  ┌──────────────────────────────────────────────────────────────────┐ │
+│  │     State & Audit Log Manager (Google Cloud Firestore / Memory)  │ │
+│  └──────────────────────────────────────────────────────────────────┘ │
+└────────────────────────────────────┬───────────────────────────────────┘
+                                     │ Viem RPC & HTTP
                                      ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                     NATIVE ARCOX & ARC NETWORK                          │
-│                                                                         │
-│  • Arc Network (Chain ID: 5042002 | RPC: https://rpc.testnet.arc.io)    │
-│  • Native Gas Token: USDC                                               │
-│  • MSCA Connection Tokens (arx_at_...) — Zero Raw Private Keys          │
-│  • x402 Micropayments & AI Router Auto-Pay Unified Balance              │
-└─────────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────┐
+│                  ARC NETWORK LAYER-1 EVM (TESTNET)                     │
+│                                                                        │
+│  • RPC: https://rpc.testnet.arc.io | Chain ID: 5042002                 │
+│  • Native Gas Token: USDC (6 decimals)                                 │
+│  • Router Contract: 0xDf800310443BEB589CEf91A09854203Ea36e43a7         │
+│  • Treasury / Intel: 0x5294E9927c3306DcBaDb03fe70b92e01cCede505       │
+│  • Block Explorer: https://testnet.arcscan.app                         │
+└────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 🚀 Quickstart (Spin-up Instructions for Devpost Judges)
+## Wallet & Execution Modes
+
+ARCOX Fleet supports multiple execution setups:
+
+* **Direct EOA Agent Wallet (Recommended for testing):** Set `AGENT_PRIVATE_KEY` in `.env`. The agent uses Viem to sign and broadcast real on-chain transactions directly to Arc Testnet RPC.
+* **Delegated MSCA Token Mode:** Set `ARCOX_AGENT_CONNECTION_TOKEN` (`arx_at_...`) for modular smart contract account integration with daily spending limits.
+* **Simulation Mode:** If no keys are provided, the fleet runs in mock mode for offline testing and CI runs.
+
+### Financial Guardrails
+* **Daily Spend Limits:** Soft-capped at $10.00 USDC per day by default.
+* **Slippage Threshold:** Trades with slippage exceeding 1.5% are rejected.
+* **Dual-Balance Telemetry:** Compares pre-execution balance against post-execution on-chain receipts to calculate exact expenditure and gas deltas.
+
+---
+
+## Project Structure
+
+```text
+arcox-fleet/
+├── src/
+│   ├── index.mjs                    # Express server & web dashboard
+│   ├── orchestrator.mjs             # Multi-agent coordination loop
+│   ├── agents/
+│   │   ├── scout.mjs                # Market scanner & x402 payer
+│   │   ├── strategist.mjs           # Gemini reasoning & model cascade
+│   │   └── executor.mjs             # Viem dispatcher & treasury agent
+│   ├── memory/
+│   │   └── firestore-bank.mjs       # Firestore persistent state & audit logs
+│   ├── protocols/
+│   │   ├── arcox-api-client.mjs     # HTTP client for ARCOX backend
+│   │   └── mcp-client.mjs           # Viem EVM client & on-chain signer
+│   └── services/
+│       └── arcox-service-catalog.mjs# Service registry exposed to Gemini
+├── scripts/
+│   ├── render_perfect_video.py      # 1080p demo slide generator
+│   └── compile_perfect_video.sh     # FFmpeg video compilation script
+├── test/
+│   └── run-autonomous-cycle.mjs     # Standalone CLI test runner
+├── Dockerfile                       # Container definition for Cloud Run
+├── package.json
+└── README.md
+```
+
+---
+
+## Getting Started
 
 ### 1. Prerequisites
-* Node.js v20+ installed
-* (Optional) Google Cloud Project ID & Gemini API Key
+* Node.js v20 or later
+* An Arc Testnet wallet with testnet USDC (faucet: [faucet.circle.com](https://faucet.circle.com))
+* (Optional) Google Gemini API Key from [Google AI Studio](https://aistudio.google.com/)
 
 ### 2. Installation
 ```bash
@@ -61,33 +107,76 @@ cd arcox-fleet
 npm install
 ```
 
-### 3. Environment Setup
-Copy the example environment file:
+### 3. Configuration
+Copy the environment file and adjust permissions:
 ```bash
 cp .env.example .env
+chmod 600 .env
 ```
-*(All parameters are pre-configured for Arc Testnet. If no Gemini API key is supplied, deterministic reasoning fallback is used).*
 
-### 4. Run Standalone Autonomous Cycle Test
-To test 1 complete autonomous cycle locally:
+Configure `.env`:
+```ini
+# Google Gemini API
+GEMINI_API_KEY=AIzaSy...
+
+# Google Cloud
+GCP_PROJECT_ID=arcox-fleet-hackathon
+PORT=8080
+
+# Arc Testnet Configuration
+ARC_RPC_URL=https://rpc.testnet.arc.io
+ARC_CHAIN_ID=5042002
+ARC_USDC_CONTRACT=0x3600000000000000000000000000000000000000
+ARC_EXPLORER_URL=https://testnet.arcscan.app
+
+# Wallet Configuration (Choose one)
+AGENT_PRIVATE_KEY=0x...
+ARCOX_AGENT_CONNECTION_TOKEN=
+
+# Autonomous Loop Settings
+AUTONOMOUS_DAEMON=true
+AUTONOMOUS_INTERVAL_SECONDS=60
+```
+
+### 4. Running a Single Test Cycle
 ```bash
 npm run test:cycle
 ```
 
-### 5. Start the Server (Google Cloud Run Ready)
+### 5. Running the Full Service & Web Dashboard
 ```bash
 npm start
 ```
-* The server will listen on `http://localhost:8080`.
-* Health check: `GET http://localhost:8080/`
-* Trigger cycle: `POST http://localhost:8080/api/fleet/run-cycle`
-* View audit logs: `GET http://localhost:8080/api/fleet/logs`
+* Web Dashboard: `http://localhost:8080/` (or public endpoint)
+* Health Check: `GET /api/fleet/status`
+* Trigger Cycle: `POST /api/fleet/run-cycle`
+* Audit Logs: `GET /api/fleet/logs`
 
 ---
 
-## ☁️ Google Cloud Deployment (Cloud Run)
+## Real-Time Web Dashboard
 
-To deploy directly to Google Cloud Run using Cloud Build (0% local Docker load):
+The web dashboard provides live monitoring and interactive controls:
+* **Live On-Chain Balance:** Continuously syncs native USDC balance from Arc RPC.
+* **Gemini Reasoning Feed:** Displays the actual reasoning string generated on each cycle.
+* **Execution Telemetry:** Shows pre-scan vs post-reconciliation deltas and on-chain TxHash links.
+* **Daemon Controls:** Pause, resume, or trigger immediate cycles.
+
+---
+
+## On-Chain Verification
+
+All executed transactions settle on the Arc Testnet and can be inspected on the explorer:
+
+* **ArcScan Explorer:** [https://testnet.arcscan.app](https://testnet.arcscan.app)
+* **Sample Swap Tx:** [`0x653c6f2bf0d051d9364545b0d1f9dbfd88db5b5412067f55e8862568c109802f`](https://testnet.arcscan.app/tx/0x653c6f2bf0d051d9364545b0d1f9dbfd88db5b5412067f55e8862568c109802f) (Block #59283984)
+* **Sample Memo Tx:** [`0x11f6364044ab791625ce49bba2532c71cc5f781d731351030957fa16b960779e`](https://testnet.arcscan.app/tx/0x11f6364044ab791625ce49bba2532c71cc5f781d731351030957fa16b960779e) (Block #59290115)
+
+---
+
+## Google Cloud Run Deployment
+
+To deploy to Google Cloud Run:
 ```bash
 gcloud run deploy arcox-fleet \
   --source . \
@@ -98,7 +187,5 @@ gcloud run deploy arcox-fleet \
 
 ---
 
-## 🛡️ Zero-Trust Security Model
-* **Zero Private Key Exposure:** No private keys are ever stored in `.env` or in memory.
-* **MSCA Connection Tokens:** Each agent operates via owner-issued `arx_at_...` tokens with hard daily spending limits.
-* **Quote-Before-Execute:** Value-moving tools strictly mandate preview verification before execution.
+## License
+MIT
