@@ -1,7 +1,6 @@
 /**
- * ARCOX Fleet Orchestrator (Google ADK & GenAI Pattern)
- * Coordinates the Triad Multi-Agent Swarm through an autonomous, closed-loop cycle.
- * Supports both manual triggers and continuous background autonomous daemon loops.
+ * ARCOX Fleet Orchestrator
+ * Coordinates pure autonomous Gemini 3.5 decision-making every 60 seconds.
  */
 
 import { ArcoxApiClient } from './protocols/arcox-api-client.mjs'
@@ -43,32 +42,39 @@ export class FleetOrchestrator {
   }
 
   /**
-   * Run 1 full autonomous closed-loop cycle
+   * Run 1 autonomous reasoning & execution cycle
    */
-  async runAutonomousCycle(triggerSource = 'MANUAL_OR_WEBHOOK') {
+  async runAutonomousCycle(triggerSource = 'SCHEDULED_DAEMON') {
     console.log('\n================================================================================')
-    console.log(`🚀 ARCOX FLEET: AUTONOMOUS CYCLE TRIGGERED [Source: ${triggerSource}]`)
+    console.log(`🚀 ARCOX FLEET: AUTONOMOUS REASONING CYCLE [Trigger: ${triggerSource}]`)
     console.log(`   Time: ${new Date().toISOString()}`)
-    console.log('   Infrastructure: Google Cloud Run & Firestore | Brain: Gemini 3.5 Flash')
-    console.log('   Execution Engine: Direct Arc Testnet RPC (5042002) + ARCOX Protocol')
+    console.log('   Brain: Google Gemini 3.5 Flash | Execution: Arc Testnet (5042002)')
     console.log('================================================================================')
 
     const cycleId = `cycle_${Date.now()}`
     const startTime = Date.now()
 
-    // 0. Check Governance Status
-    const mscaStatus = await this.mcpClient.getMscaStatus()
-    const walletDisplay = mscaStatus.walletAddress || mscaStatus.mscaWallet || '0x71C...ArcMSCA'
-    console.log(`[Governance] Mode: ${mscaStatus.mode} | Wallet: ${walletDisplay} | Daily Limit: $${mscaStatus.dailyLimitUsdc} USDC`)
+    // 1. Step 1: Scan real-time on-chain balances & wallet status
+    console.log('📊 Step 1: Scanning on-chain balances & governance status...')
+    const [walletBalances, mscaStatus, aiRouterStatus] = await Promise.all([
+      this.mcpClient.getWalletBalances(),
+      this.mcpClient.getMscaStatus(),
+      this.mcpClient.getAiRouterStatus(),
+    ])
 
-    // 1. Phase 1: Scout Market & x402 Auto-Payment
+    // 2. Step 2: Scout market snapshot
     const marketSignal = await this.scout.runScan()
 
-    // 2. Phase 2: Strategist Analysis & Model Armor Validation (Gemini 3.5)
-    const actionPlan = await this.strategist.evaluateSignal(marketSignal, mscaStatus)
+    // 3. Step 3: Pure Autonomous Reasoning by Gemini 3.5 with full ARCOX Service Catalog
+    const actionPlan = await this.strategist.evaluateAutonomousDecision({
+      walletBalances,
+      mscaStatus,
+      aiRouterStatus,
+      marketSignal,
+    })
 
-    // 3. Phase 3: Executor Safe Execution & Self-Funding
-    const executionReport = await this.executor.executeDirective(actionPlan)
+    // 4. Step 4: Execute Gemini's chosen action
+    const executionSummary = await this.executor.executeDirective(actionPlan)
 
     const durationMs = Date.now() - startTime
 
@@ -80,53 +86,48 @@ export class FleetOrchestrator {
       timestamp: new Date().toISOString(),
       governance: {
         mode: mscaStatus.mode,
-        wallet: walletDisplay,
-        dailyLimitCheck: 'PASSED',
+        wallet: mscaStatus.walletAddress || mscaStatus.mscaWallet,
       },
-      phases: {
-        phase1_intel: marketSignal,
-        phase2_reasoning: actionPlan,
-        phase3_settlement: executionReport,
+      autonomousDecision: {
+        decision: actionPlan.decision,
+        reasoning: actionPlan.reasoning,
+        executionResult: executionSummary.result,
       },
     }
 
     await this.memoryBank.recordAuditLog({
-      action: 'CYCLE_COMPLETED',
+      action: 'AUTONOMOUS_CYCLE_COMPLETE',
       cycleId,
-      triggerSource,
       durationMs,
       summary,
     })
 
-    console.log('\n================================================================================')
-    console.log(`✅ AUTONOMOUS CYCLE FINISHED [${durationMs}ms] - Agent Swarm resting until next trigger.`)
+    console.log('================================================================================')
+    console.log(`✅ CYCLE COMPLETED in ${durationMs}ms. Gemini decided: [${actionPlan.decision}]`)
     console.log('================================================================================\n')
 
     return summary
   }
 
   /**
-   * Start autonomous background daemon loop (runs 24/7 on interval)
+   * Start 60-second autonomous polling loop
    */
   startAutonomousDaemon(intervalSeconds = 60) {
     if (this.isRunning) return
     this.isRunning = true
 
-    console.log(`\n🤖 [Autonomous Daemon] Started! Fleet will trigger automatically every ${intervalSeconds} seconds.`)
+    console.log(`\n🤖 [Autonomous Daemon Active] Gemini 3.5 will scan balances and reason every ${intervalSeconds} seconds.`)
 
     // Run first cycle immediately
-    this.runAutonomousCycle('DAEMON_STARTUP').catch(err => console.error('[Daemon Error]:', err.message))
+    this.runAutonomousCycle('DAEMON_STARTUP').catch(err => console.error('[Daemon Startup Error]:', err.message))
 
     this.daemonTimer = setInterval(() => {
-      this.runAutonomousCycle('DAEMON_SCHEDULED_HEARTBEAT').catch(err => {
-        console.error('[Daemon Cycle Error]:', err.message)
+      this.runAutonomousCycle('DAEMON_HEARTBEAT').catch(err => {
+        console.error('[Daemon Interval Error]:', err.message)
       })
     }, intervalSeconds * 1000)
   }
 
-  /**
-   * Stop autonomous daemon loop
-   */
   stopAutonomousDaemon() {
     if (this.daemonTimer) {
       clearInterval(this.daemonTimer)
