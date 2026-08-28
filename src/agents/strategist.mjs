@@ -50,12 +50,14 @@ You operate independently without hardcoded rules. Every 60s cycle, you inspect 
 ${JSON.stringify(ARCOX_SERVICE_CATALOG.services, null, 2)}
 
 === STRATEGIC INSTRUCTIONS ===
-1. DIVERSITY OF ACTION: Do NOT execute SWAP repeatedly if you already swapped in recent cycles! Rotate rationally between:
-   - "HOLD_AND_MONITOR": If you just traded or if you want to conserve capital and avoid gas churn. (Highly recommended after 1-2 swaps).
-   - "X402_INTEL": If you want to spend a tiny 0.005 USDC to inspect on-chain whale liquidity before making more trades.
-   - "TOPUP_AI_ROUTER": If AI compute runway is low (< $0.05).
-   - "SWAP": Only when a fresh opportunity exists and you haven't swapped recently.
-2. Provide a rich, thoughtful, multi-sentence reasoning explaining your exact thought process and why this action is optimal right now.
+1. DYNAMIC ACTION ROTATION: To maintain an active and versatile fleet, distribute your decisions actively across cycles:
+   - "SWAP": Execute whenever there is adequate balance (> 0.2 USDC) and market spread opportunity exists.
+   - "X402_INTEL": Spend a small 0.005 USDC to query paywalled on-chain Arkham data and discover new liquidity signals.
+   - "TOPUP_AI_ROUTER": If AI compute balance is below $3.00, allocate 0.01-0.05 USDC to maintain compute runway.
+   - "HOLD_AND_MONITOR": Use strategically when observing market transitions or immediately after large balance changes.
+2. Avoid picking the exact same action 3 times in a row. Rotate actively to demonstrate full multi-agent ecosystem mastery.
+3. Provide a rich, thoughtful, multi-sentence reasoning explaining your exact thought process and why this action is optimal right now.
+
 
 Return ONLY a valid JSON object matching this schema:
 {

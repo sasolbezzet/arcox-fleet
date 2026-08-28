@@ -299,9 +299,20 @@ app.get('/', (req, res) => {
       }
     }
 
+    let hasAutoScanned = false;
+
+    async function initClient() {
+      await updateDashboard();
+      if (!hasAutoScanned) {
+        hasAutoScanned = true;
+        fetch('/api/fleet/run-cycle', { method: 'POST' }).then(() => updateDashboard());
+      }
+    }
+
     setInterval(updateDashboard, 3000);
-    updateDashboard();
+    initClient();
   </script>
+
 </body>
 </html>`)
 })
