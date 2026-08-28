@@ -1,6 +1,9 @@
 /**
- * ARCOX Fleet HTTP Server & Real-Time Monitoring Dashboard
- * Google Cloud Run Entry Point with Web Dashboard, Health Checks, and REST API.
+ * ARCOX Fleet HTTP Server & Real-Time Interactive Monitoring Dashboard
+ * Features:
+ * - Start / Stop Daemon Controls
+ * - Real-Time Gemini Reasoning & Scan Telemetry
+ * - Detailed Execution Reports with On-Chain Proof
  */
 
 import 'dotenv/config'
@@ -21,7 +24,7 @@ const orchestrator = new FleetOrchestrator({
   projectId: process.env.GCP_PROJECT_ID,
 })
 
-// 1. Interactive Live Web Dashboard (Browser Monitoring UI)
+// 1. Interactive Live Web Dashboard (Mobile-friendly, Dark Mode)
 app.get('/', (req, res) => {
   res.setHeader('Content-Type', 'text/html')
   res.send(`<!DOCTYPE html>
@@ -29,84 +32,127 @@ app.get('/', (req, res) => {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ARCOX Fleet — Live Autonomous Monitor</title>
+  <title>ARCOX Fleet — Live Autonomous Commander</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
-    tailwind.config = { darkMode: 'class', theme: { extend: { colors: { darkbg: '#0B0F17', cardbg: '#161F30' } } } }
+    tailwind.config = { darkMode: 'class', theme: { extend: { colors: { darkbg: '#0B0F17', cardbg: '#141D2E', subcard: '#1B273D' } } } }
   </script>
 </head>
-<body class="bg-darkbg text-slate-100 min-h-screen font-sans antialiased p-4 md:p-8">
-  <div class="max-w-6xl mx-auto space-y-6">
+<body class="bg-darkbg text-slate-100 min-h-screen font-sans antialiased p-3 md:p-6">
+  <div class="max-w-6xl mx-auto space-y-5">
     
-    <!-- Header -->
-    <header class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-slate-800 pb-6">
+    <!-- Top Bar & Daemon Controls -->
+    <header class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-cardbg border border-slate-800 rounded-2xl p-4 md:p-6 shadow-xl">
       <div>
-        <div class="flex items-center gap-3">
-          <span class="text-3xl">🚀</span>
-          <h1 class="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-400">ARCOX Fleet Monitor</h1>
-          <span id="status-badge" class="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 animate-pulse">● LIVE AUTONOMOUS</span>
+        <div class="flex items-center gap-2.5">
+          <span class="text-2xl">🚀</span>
+          <h1 class="text-xl md:text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-300 to-teal-300">ARCOX Fleet Commander</h1>
+          <span id="daemon-badge" class="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 animate-pulse">● RUNNING (60s)</span>
         </div>
-        <p class="text-sm text-slate-400 mt-1">Target Track: Track 3 — The Fortified Enterprise Fleet | Arc Testnet (Chain ID 5042002)</p>
+        <p class="text-xs text-slate-400 mt-1">Track 3: The Fortified Enterprise Fleet | Arc Testnet (Chain ID 5042002)</p>
       </div>
-      <div class="flex items-center gap-3">
-        <button onclick="triggerManualCycle()" id="btn-trigger" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-sm font-semibold rounded-lg shadow-lg transition">⚡ Trigger Cycle Now</button>
-        <span class="text-xs text-slate-500" id="last-updated">Auto-refreshing (5s)</span>
+
+      <!-- Action Buttons -->
+      <div class="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
+        <button id="btn-toggle-daemon" onclick="toggleDaemon()" class="flex-1 md:flex-none px-4 py-2.5 text-xs md:text-sm font-semibold rounded-xl transition shadow-lg flex items-center justify-center gap-2 bg-rose-600 hover:bg-rose-500 text-white">
+          <span id="toggle-icon">⏸</span> <span id="toggle-text">Stop Autonomous Daemon</span>
+        </button>
+        <button id="btn-trigger" onclick="triggerManualCycle()" class="flex-1 md:flex-none px-4 py-2.5 text-xs md:text-sm font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white transition shadow-lg flex items-center justify-center gap-2 active:scale-95">
+          <span>⚡</span> <span>Scan & Reason Now</span>
+        </button>
       </div>
     </header>
 
-    <!-- Stat Cards -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      <div class="bg-cardbg border border-slate-800 rounded-xl p-5 shadow-lg">
-        <div class="text-xs uppercase font-medium text-slate-400">On-Chain USDC Balance</div>
-        <div class="text-2xl font-bold text-white mt-1" id="stat-balance">Loading...</div>
-        <div class="text-xs text-emerald-400 mt-1">Arc Network Native Gas</div>
+    <!-- Key Metrics Cards -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+      <div class="bg-cardbg border border-slate-800 rounded-xl p-4 shadow-lg">
+        <div class="text-[11px] uppercase font-semibold tracking-wider text-slate-400">On-Chain USDC Balance</div>
+        <div class="text-xl md:text-2xl font-bold text-white mt-1" id="stat-balance">Loading...</div>
+        <div class="text-[11px] text-emerald-400 mt-0.5 font-mono">Arc Native Gas Token</div>
       </div>
-      <div class="bg-cardbg border border-slate-800 rounded-xl p-5 shadow-lg">
-        <div class="text-xs uppercase font-medium text-slate-400">AI Compute Runway</div>
-        <div class="text-2xl font-bold text-indigo-300 mt-1" id="stat-ai-balance">Loading...</div>
-        <div class="text-xs text-indigo-400 mt-1">AI Router Unified Balance</div>
+      <div class="bg-cardbg border border-slate-800 rounded-xl p-4 shadow-lg">
+        <div class="text-[11px] uppercase font-semibold tracking-wider text-slate-400">AI Compute Runway</div>
+        <div class="text-xl md:text-2xl font-bold text-indigo-300 mt-1" id="stat-ai-balance">Loading...</div>
+        <div class="text-[11px] text-indigo-400 mt-0.5 font-mono">AI Router Unified Balance</div>
       </div>
-      <div class="bg-cardbg border border-slate-800 rounded-xl p-5 shadow-lg">
-        <div class="text-xs uppercase font-medium text-slate-400">Model Armor Daily Limit</div>
-        <div class="text-2xl font-bold text-white mt-1" id="stat-daily-limit">$10.00 USDC</div>
-        <div class="text-xs text-blue-400 mt-1">Zero-Trust Guardrail</div>
+      <div class="bg-cardbg border border-slate-800 rounded-xl p-4 shadow-lg">
+        <div class="text-[11px] uppercase font-semibold tracking-wider text-slate-400">Model Armor Daily Limit</div>
+        <div class="text-xl md:text-2xl font-bold text-white mt-1" id="stat-daily-limit">$10.00 USDC</div>
+        <div class="text-[11px] text-blue-400 mt-0.5 font-mono">Zero-Trust Guardrail</div>
       </div>
-      <div class="bg-cardbg border border-slate-800 rounded-xl p-5 shadow-lg">
-        <div class="text-xs uppercase font-medium text-slate-400">Heartbeat Interval</div>
-        <div class="text-2xl font-bold text-white mt-1">Every 60s</div>
-        <div class="text-xs text-amber-400 mt-1">Autonomous Daemon Active</div>
+      <div class="bg-cardbg border border-slate-800 rounded-xl p-4 shadow-lg">
+        <div class="text-[11px] uppercase font-semibold tracking-wider text-slate-400">Heartbeat Interval</div>
+        <div class="text-xl md:text-2xl font-bold text-white mt-1" id="stat-interval">Every 60s</div>
+        <div class="text-[11px] text-amber-400 mt-0.5 font-mono" id="stat-next-scan">Next scan in ~45s</div>
       </div>
     </div>
 
-    <!-- Live Gemini 3.5 Thought Process -->
-    <div class="bg-cardbg border border-indigo-500/30 rounded-xl p-6 shadow-xl relative overflow-hidden">
-      <div class="absolute top-0 right-0 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl -z-0"></div>
-      <div class="flex items-center gap-2 mb-3">
-        <span class="text-xl">🧠</span>
-        <h2 class="text-lg font-bold text-white">Latest Gemini 3.5 Flash Autonomous Reasoning</h2>
-        <span id="gemini-decision-tag" class="ml-auto px-3 py-1 text-xs font-bold rounded-lg bg-indigo-600/30 text-indigo-300 border border-indigo-500/40">Analyzing...</span>
+    <!-- Live Real-Time Gemini Reasoning Box -->
+    <div class="bg-cardbg border border-indigo-500/30 rounded-2xl p-5 md:p-6 shadow-xl relative overflow-hidden">
+      <div class="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -z-0"></div>
+      
+      <div class="flex items-center justify-between gap-2 mb-3">
+        <div class="flex items-center gap-2">
+          <span class="text-xl">🧠</span>
+          <h2 class="text-base md:text-lg font-bold text-white">Gemini 3.5 Flash Autonomous Reasoning</h2>
+        </div>
+        <span id="gemini-decision-tag" class="px-3 py-1 text-xs font-bold rounded-lg bg-indigo-600/30 text-indigo-300 border border-indigo-500/40 uppercase">Analyzing...</span>
       </div>
-      <blockquote id="gemini-thought" class="text-sm text-slate-300 italic bg-slate-900/60 p-4 rounded-lg border border-slate-800/80 leading-relaxed font-mono">
-        Waiting for next 60s cycle...
-      </blockquote>
+
+      <div class="bg-subcard border border-slate-800 rounded-xl p-4 shadow-inner">
+        <div class="text-xs uppercase text-slate-400 font-semibold mb-1.5 flex items-center gap-2">
+          <span>💭</span> <span>Autonomous Thought Stream (Pure AI Decision):</span>
+        </div>
+        <blockquote id="gemini-thought" class="text-sm md:text-base text-slate-200 italic font-mono leading-relaxed">
+          Waiting for next scan cycle...
+        </blockquote>
+      </div>
     </div>
 
-    <!-- Live Transaction & Audit Trail Feed -->
-    <div class="bg-cardbg border border-slate-800 rounded-xl p-6 shadow-lg">
+    <!-- Latest Execution Report Breakdown -->
+    <div class="bg-cardbg border border-slate-800 rounded-2xl p-5 md:p-6 shadow-xl space-y-4">
+      <div class="flex items-center justify-between">
+        <h2 class="text-base md:text-lg font-bold text-white flex items-center gap-2">
+          <span>⚡</span> <span>Latest Execution & On-Chain Proof Report</span>
+        </h2>
+        <span id="report-timestamp" class="text-xs text-slate-400 font-mono">Just now</span>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div class="bg-subcard border border-slate-800 rounded-xl p-3.5">
+          <div class="text-xs text-slate-400">Action Executed</div>
+          <div class="text-base font-bold text-teal-300 mt-1 font-mono" id="report-action">-</div>
+          <div class="text-xs text-slate-500 mt-0.5" id="report-intent">-</div>
+        </div>
+        <div class="bg-subcard border border-slate-800 rounded-xl p-3.5">
+          <div class="text-xs text-slate-400">Pre vs Post Balance Delta</div>
+          <div class="text-base font-bold text-amber-300 mt-1 font-mono" id="report-delta">-</div>
+          <div class="text-xs text-slate-500 mt-0.5" id="report-balance-range">-</div>
+        </div>
+        <div class="bg-subcard border border-slate-800 rounded-xl p-3.5">
+          <div class="text-xs text-slate-400">On-Chain Block & Explorer Proof</div>
+          <div class="text-sm font-bold text-blue-400 mt-1 font-mono truncate" id="report-txhash">No Tx yet</div>
+          <div class="text-xs text-slate-400 mt-0.5" id="report-explorer">-</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Audit Trail Table -->
+    <div class="bg-cardbg border border-slate-800 rounded-2xl p-5 md:p-6 shadow-xl">
       <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg font-bold text-white flex items-center gap-2">
-          <span>📜</span> Real-Time Audit Trail & On-Chain Transactions
+        <h2 class="text-base md:text-lg font-bold text-white flex items-center gap-2">
+          <span>📜</span> Real-Time Audit Log & Telemetry History
         </h2>
         <span class="text-xs text-slate-400" id="log-count">0 logs recorded</span>
       </div>
       <div class="overflow-x-auto">
-        <table class="w-full text-left text-sm text-slate-300">
-          <thead class="text-xs text-slate-400 uppercase bg-slate-900/80 border-b border-slate-800">
+        <table class="w-full text-left text-xs md:text-sm text-slate-300">
+          <thead class="text-[11px] text-slate-400 uppercase bg-slate-900/80 border-b border-slate-800">
             <tr>
-              <th class="px-4 py-3">Timestamp</th>
-              <th class="px-4 py-3">Agent</th>
-              <th class="px-4 py-3">Action / Decision</th>
-              <th class="px-4 py-3">On-Chain Tx / Explorer Link</th>
+              <th class="px-3 py-2.5">Time</th>
+              <th class="px-3 py-2.5">Decision</th>
+              <th class="px-3 py-2.5">Balance Delta</th>
+              <th class="px-3 py-2.5">On-Chain TxHash (ArcScan)</th>
             </tr>
           </thead>
           <tbody id="logs-table-body" class="divide-y divide-slate-800/50">
@@ -119,6 +165,8 @@ app.get('/', (req, res) => {
   </div>
 
   <script>
+    let isDaemonActive = true;
+
     async function updateDashboard() {
       try {
         const [statusRes, logsRes] = await Promise.all([
@@ -127,52 +175,107 @@ app.get('/', (req, res) => {
         ]);
 
         if (statusRes.ok) {
+          isDaemonActive = statusRes.daemonRunning;
+          updateDaemonUI(isDaemonActive);
+
           const bal = statusRes.balances?.balances?.Arc_Testnet?.balance || '0.00';
-          document.getElementById('stat-balance').innerText = bal + ' USDC';
+          document.getElementById('stat-balance').innerText = Number(bal).toFixed(4) + ' USDC';
           document.getElementById('stat-ai-balance').innerText = '$' + (statusRes.aiRouterStatus?.unifiedBalance?.totalConfirmedBalance || '0.00') + ' USDC';
-          document.getElementById('stat-daily-limit').innerText = '$' + (statusRes.mscaStatus?.dailyLimitUsdc || '10.0') + ' USDC';
+          document.getElementById('stat-daily-limit').innerText = '$' + (statusRes.mscaStatus?.remainingLimitUsdc || '9.5') + ' USDC';
         }
 
         if (logsRes.ok && logsRes.logs.length > 0) {
           document.getElementById('log-count').innerText = logsRes.logs.length + ' logs recorded';
           
-          // Find latest reasoning log
+          // Latest cycle log
           const latestCycle = logsRes.logs.find(l => l.summary?.autonomousDecision);
           if (latestCycle) {
             const dec = latestCycle.summary.autonomousDecision;
+            const telem = latestCycle.summary.balanceTelemetry || {};
+            const resObj = dec.executionResult || {};
+
             document.getElementById('gemini-decision-tag').innerText = 'DECISION: ' + dec.decision;
             document.getElementById('gemini-thought').innerText = '"' + dec.reasoning + '"';
+            document.getElementById('report-timestamp').innerText = new Date(latestCycle.timestamp).toLocaleTimeString();
+            document.getElementById('report-action').innerText = dec.decision;
+            document.getElementById('report-intent').innerText = resObj.intent ? 'Intent: ' + resObj.intent : 'Status: ' + (resObj.status || 'DONE');
+            document.getElementById('report-delta').innerText = telem.delta ? telem.delta : '-';
+            document.getElementById('report-balance-range').innerText = telem.initialBalance ? telem.initialBalance + ' ➔ ' + telem.finalBalance : '-';
+
+            const txHash = resObj.txHash || '-';
+            if (txHash !== '-') {
+              document.getElementById('report-txhash').innerHTML = '<a href="https://testnet.arcscan.app/tx/' + txHash + '" target="_blank" class="text-blue-400 hover:underline">' + txHash.slice(0, 14) + '...' + txHash.slice(-10) + ' ↗</a>';
+              document.getElementById('report-explorer').innerHTML = '<a href="https://testnet.arcscan.app/tx/' + txHash + '" target="_blank" class="text-teal-400 hover:underline text-xs">Verify on ArcScan Explorer ↗</a>';
+            } else {
+              document.getElementById('report-txhash').innerText = 'Passive Hold / Telemetry';
+              document.getElementById('report-explorer').innerText = 'No on-chain state mutation';
+            }
           }
 
-          // Render table
+          // Table render
           const tbody = document.getElementById('logs-table-body');
           tbody.innerHTML = logsRes.logs.map(log => {
-            const txHash = log.summary?.phases?.phase3_settlement?.swapResult?.txHash || log.details?.result?.txHash || log.details?.txHash || '-';
+            const txHash = log.summary?.autonomousDecision?.executionResult?.txHash || log.details?.result?.txHash || '-';
             const explorerLink = txHash !== '-' 
               ? '<a href="https://testnet.arcscan.app/tx/' + txHash + '" target="_blank" class="text-blue-400 hover:underline font-mono text-xs">' + txHash.slice(0, 10) + '...' + txHash.slice(-8) + ' ↗</a>'
-              : '<span class="text-slate-500 text-xs">Internal / Telemetry</span>';
+              : '<span class="text-slate-500 text-xs">Passive Telemetry</span>';
             
-            const actionText = log.action || log.summary?.autonomousDecision?.decision || 'CYCLE';
-            const agentName = log.agentId || 'Fleet Orchestrator';
+            const actionText = log.summary?.autonomousDecision?.decision || log.action || 'CYCLE';
+            const deltaText = log.summary?.balanceTelemetry?.delta || '-';
 
             return '<tr class="hover:bg-slate-800/30 transition">' +
-              '<td class="px-4 py-3 text-slate-400 font-mono text-xs">' + new Date(log.timestamp).toLocaleTimeString() + '</td>' +
-              '<td class="px-4 py-3 font-semibold text-slate-200">' + agentName + '</td>' +
-              '<td class="px-4 py-3"><span class="px-2 py-0.5 rounded text-xs bg-slate-800 text-slate-300 font-semibold">' + actionText + '</span></td>' +
-              '<td class="px-4 py-3">' + explorerLink + '</td>' +
+              '<td class="px-3 py-2.5 text-slate-400 font-mono text-xs">' + new Date(log.timestamp).toLocaleTimeString() + '</td>' +
+              '<td class="px-3 py-2.5 font-semibold text-slate-200"><span class="px-2 py-0.5 rounded bg-slate-800 text-indigo-300 font-mono text-xs">' + actionText + '</span></td>' +
+              '<td class="px-3 py-2.5 font-mono text-xs text-amber-300">' + deltaText + '</td>' +
+              '<td class="px-3 py-2.5">' + explorerLink + '</td>' +
             '</tr>';
           }).join('');
         }
-
-        document.getElementById('last-updated').innerText = 'Updated: ' + new Date().toLocaleTimeString();
       } catch (e) {
         console.error('Update failed:', e);
       }
     }
 
+    function updateDaemonUI(isRunning) {
+      const badge = document.getElementById('daemon-badge');
+      const btn = document.getElementById('btn-toggle-daemon');
+      const icon = document.getElementById('toggle-icon');
+      const text = document.getElementById('toggle-text');
+      const intervalStat = document.getElementById('stat-interval');
+
+      if (isRunning) {
+        badge.innerText = '● RUNNING (60s)';
+        badge.className = 'px-2.5 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 animate-pulse';
+        btn.className = 'flex-1 md:flex-none px-4 py-2.5 text-xs md:text-sm font-semibold rounded-xl transition shadow-lg flex items-center justify-center gap-2 bg-rose-600 hover:bg-rose-500 text-white';
+        icon.innerText = '⏸';
+        text.innerText = 'Stop Autonomous Daemon';
+        intervalStat.innerText = 'Every 60s';
+      } else {
+        badge.innerText = '⏸ PAUSED';
+        badge.className = 'px-2.5 py-0.5 text-xs font-semibold rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30';
+        btn.className = 'flex-1 md:flex-none px-4 py-2.5 text-xs md:text-sm font-semibold rounded-xl transition shadow-lg flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white';
+        icon.innerText = '▶';
+        text.innerText = 'Start Autonomous Daemon';
+        intervalStat.innerText = 'PAUSED';
+      }
+    }
+
+    async function toggleDaemon() {
+      const action = isDaemonActive ? 'stop' : 'start';
+      try {
+        const res = await fetch('/api/fleet/daemon/' + action, { method: 'POST' }).then(r => r.json());
+        if (res.ok) {
+          isDaemonActive = res.running;
+          updateDaemonUI(isDaemonActive);
+        }
+      } catch (e) {
+        alert('Toggle failed: ' + e.message);
+      }
+    }
+
     async function triggerManualCycle() {
       const btn = document.getElementById('btn-trigger');
-      btn.innerText = '⏳ Executing...';
+      btn.innerText = '⏳ Scanning...';
       btn.disabled = true;
       try {
         await fetch('/api/fleet/run-cycle', { method: 'POST' });
@@ -180,12 +283,12 @@ app.get('/', (req, res) => {
       } catch (e) {
         alert('Failed: ' + e.message);
       } finally {
-        btn.innerText = '⚡ Trigger Cycle Now';
+        btn.innerHTML = '<span>⚡</span> <span>Scan & Reason Now</span>';
         btn.disabled = false;
       }
     }
 
-    setInterval(updateDashboard, 5000);
+    setInterval(updateDashboard, 4000);
     updateDashboard();
   </script>
 </body>
@@ -206,7 +309,19 @@ app.get('/api/fleet/status', async (req, res) => {
   }
 })
 
-// 3. Trigger API
+// 3. Daemon Control APIs: Start & Stop
+app.post('/api/fleet/daemon/start', (req, res) => {
+  const interval = Number(process.env.AUTONOMOUS_INTERVAL_SECONDS) || 60
+  orchestrator.startAutonomousDaemon(interval)
+  res.json({ ok: true, running: true, message: 'Autonomous daemon started' })
+})
+
+app.post('/api/fleet/daemon/stop', (req, res) => {
+  orchestrator.stopAutonomousDaemon()
+  res.json({ ok: true, running: false, message: 'Autonomous daemon stopped' })
+})
+
+// 4. Trigger API
 app.post('/api/fleet/run-cycle', async (req, res) => {
   try {
     const result = await orchestrator.runAutonomousCycle('API_REQUEST')
@@ -214,15 +329,6 @@ app.post('/api/fleet/run-cycle', async (req, res) => {
   } catch (error) {
     res.status(500).json({ ok: false, error: error.message })
   }
-})
-
-// 4. Webhook Trigger
-app.post('/api/fleet/webhook', async (req, res) => {
-  const event = req.body?.event || req.body?.type || 'EXTERNAL_MARKET_EVENT'
-  res.json({ ok: true, message: `Autonomous cycle triggered by webhook event: ${event}` })
-  orchestrator.runAutonomousCycle(`WEBHOOK_${event}`).catch(err => {
-    console.error('[Webhook Error]:', err.message)
-  })
 })
 
 // 5. Audit logs API
@@ -236,12 +342,10 @@ app.get('/api/fleet/logs', async (req, res) => {
 })
 
 app.listen(PORT, () => {
-  console.log(`🌐 ARCOX Fleet Web Dashboard: http://localhost:${PORT}`)
-  console.log(`📡 Autonomous Daemon Active: every ${process.env.AUTONOMOUS_INTERVAL_SECONDS || 60}s`)
+  console.log(`🌐 ARCOX Fleet Web Dashboard running on port ${PORT}`)
+  console.log(`📡 Daemon State: ${process.env.AUTONOMOUS_DAEMON !== 'false' ? 'ACTIVE (60s)' : 'PAUSED'}`)
   
-  const isDaemonEnabled = String(process.env.AUTONOMOUS_DAEMON !== 'false')
-  const interval = Number(process.env.AUTONOMOUS_INTERVAL_SECONDS) || 60
-  if (isDaemonEnabled) {
-    orchestrator.startAutonomousDaemon(interval)
+  if (process.env.AUTONOMOUS_DAEMON !== 'false') {
+    orchestrator.startAutonomousDaemon(Number(process.env.AUTONOMOUS_INTERVAL_SECONDS) || 60)
   }
 })
