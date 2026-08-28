@@ -370,9 +370,14 @@ app.get('/api/fleet/logs', async (req, res) => {
   }
 })
 
-app.listen(PORT, () => {
-  console.log(`🌐 ARCOX Fleet Web Dashboard running on port ${PORT}`)
-  if (process.env.AUTONOMOUS_DAEMON !== 'false') {
-    orchestrator.startAutonomousDaemon(Number(process.env.AUTONOMOUS_INTERVAL_SECONDS) || 60)
-  }
-})
+if (process.env.VERCEL !== '1') {
+  app.listen(PORT, () => {
+    console.log(`🌐 ARCOX Fleet Web Dashboard running on port ${PORT}`)
+    if (process.env.AUTONOMOUS_DAEMON !== 'false') {
+      orchestrator.startAutonomousDaemon(Number(process.env.AUTONOMOUS_INTERVAL_SECONDS) || 60)
+    }
+  })
+}
+
+export default app
+

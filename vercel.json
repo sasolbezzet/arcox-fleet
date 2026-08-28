@@ -1,0 +1,23 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/index.mjs",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/arcox-fleet-demo.mp4",
+      "dest": "/public/arcox-fleet-demo.mp4"
+    },
+    {
+      "src": "/thumbnail.png",
+      "dest": "/public/thumbnail.png"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/api/index.mjs"
+    }
+  ]
+}
