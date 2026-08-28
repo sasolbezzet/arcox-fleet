@@ -1,9 +1,5 @@
 /**
  * ARCOX Fleet HTTP Server & Real-Time Interactive Monitoring Dashboard
- * Features:
- * - Start / Stop Daemon Controls
- * - Real-Time Gemini Reasoning & Scan Telemetry
- * - Detailed Execution Reports with On-Chain Proof
  */
 
 import 'dotenv/config'
@@ -83,7 +79,7 @@ app.get('/', (req, res) => {
       <div class="bg-cardbg border border-slate-800 rounded-xl p-4 shadow-lg">
         <div class="text-[11px] uppercase font-semibold tracking-wider text-slate-400">Heartbeat Interval</div>
         <div class="text-xl md:text-2xl font-bold text-white mt-1" id="stat-interval">Every 60s</div>
-        <div class="text-[11px] text-amber-400 mt-0.5 font-mono" id="stat-next-scan">Next scan in ~45s</div>
+        <div class="text-[11px] text-amber-400 mt-0.5 font-mono" id="stat-status-text">Autonomous Loop Active</div>
       </div>
     </div>
 
@@ -94,17 +90,18 @@ app.get('/', (req, res) => {
       <div class="flex items-center justify-between gap-2 mb-3">
         <div class="flex items-center gap-2">
           <span class="text-xl">🧠</span>
-          <h2 class="text-base md:text-lg font-bold text-white">Gemini 3.5 Flash Autonomous Reasoning</h2>
+          <h2 class="text-base md:text-lg font-bold text-white">Live Gemini Autonomous Reasoning</h2>
         </div>
         <span id="gemini-decision-tag" class="px-3 py-1 text-xs font-bold rounded-lg bg-indigo-600/30 text-indigo-300 border border-indigo-500/40 uppercase">Analyzing...</span>
       </div>
 
       <div class="bg-subcard border border-slate-800 rounded-xl p-4 shadow-inner">
-        <div class="text-xs uppercase text-slate-400 font-semibold mb-1.5 flex items-center gap-2">
-          <span>💭</span> <span>Autonomous Thought Stream (Pure AI Decision):</span>
+        <div class="text-xs uppercase text-slate-400 font-semibold mb-1.5 flex items-center justify-between">
+          <span class="flex items-center gap-2"><span>💭</span> <span>Autonomous Thought Stream (Updates on Every Scan):</span></span>
+          <span id="reasoning-time" class="text-[10px] text-slate-500 font-mono">Syncing...</span>
         </div>
         <blockquote id="gemini-thought" class="text-sm md:text-base text-slate-200 italic font-mono leading-relaxed">
-          Waiting for next scan cycle...
+          Waiting for first scan cycle...
         </blockquote>
       </div>
     </div>
@@ -182,35 +179,35 @@ app.get('/', (req, res) => {
           document.getElementById('stat-balance').innerText = Number(bal).toFixed(4) + ' USDC';
           document.getElementById('stat-ai-balance').innerText = '$' + (statusRes.aiRouterStatus?.unifiedBalance?.totalConfirmedBalance || '0.00') + ' USDC';
           document.getElementById('stat-daily-limit').innerText = '$' + (statusRes.mscaStatus?.remainingLimitUsdc || '9.5') + ' USDC';
-        }
 
-        if (logsRes.ok && logsRes.logs.length > 0) {
-          document.getElementById('log-count').innerText = logsRes.logs.length + ' logs recorded';
-          
-          // Latest cycle log
-          const latestCycle = logsRes.logs.find(l => l.summary?.autonomousDecision);
-          if (latestCycle) {
-            const dec = latestCycle.summary.autonomousDecision;
-            const telem = latestCycle.summary.balanceTelemetry || {};
+          // Direct live telemetry rendering from latestCycle
+          if (statusRes.latestCycle && statusRes.latestCycle.autonomousDecision) {
+            const dec = statusRes.latestCycle.autonomousDecision;
+            const telem = statusRes.latestCycle.balanceTelemetry || {};
             const resObj = dec.executionResult || {};
 
-            document.getElementById('gemini-decision-tag').innerText = 'DECISION: ' + dec.decision;
+            document.getElementById('gemini-decision-tag').innerText = 'DECISION: ' + dec.decision + ' (' + (dec.model || 'Gemini') + ')';
             document.getElementById('gemini-thought').innerText = '"' + dec.reasoning + '"';
-            document.getElementById('report-timestamp').innerText = new Date(latestCycle.timestamp).toLocaleTimeString();
+            document.getElementById('reasoning-time').innerText = 'Updated: ' + new Date(statusRes.latestCycle.timestamp).toLocaleTimeString();
+            document.getElementById('report-timestamp').innerText = new Date(statusRes.latestCycle.timestamp).toLocaleTimeString();
             document.getElementById('report-action').innerText = dec.decision;
             document.getElementById('report-intent').innerText = resObj.intent ? 'Intent: ' + resObj.intent : 'Status: ' + (resObj.status || 'DONE');
-            document.getElementById('report-delta').innerText = telem.delta ? telem.delta : '-';
+            document.getElementById('report-delta').innerText = telem.delta ? telem.delta : '0.000000 USDC';
             document.getElementById('report-balance-range').innerText = telem.initialBalance ? telem.initialBalance + ' ➔ ' + telem.finalBalance : '-';
 
             const txHash = resObj.txHash || '-';
             if (txHash !== '-') {
-              document.getElementById('report-txhash').innerHTML = '<a href="https://testnet.arcscan.app/tx/' + txHash + '" target="_blank" class="text-blue-400 hover:underline">' + txHash.slice(0, 14) + '...' + txHash.slice(-10) + ' ↗</a>';
+              document.getElementById('report-txhash').innerHTML = '<a href="https://testnet.arcscan.app/tx/' + txHash + '" target="_blank" class="text-blue-400 hover:underline font-mono">' + txHash.slice(0, 12) + '...' + txHash.slice(-8) + ' ↗</a>';
               document.getElementById('report-explorer').innerHTML = '<a href="https://testnet.arcscan.app/tx/' + txHash + '" target="_blank" class="text-teal-400 hover:underline text-xs">Verify on ArcScan Explorer ↗</a>';
             } else {
               document.getElementById('report-txhash').innerText = 'Passive Hold / Telemetry';
               document.getElementById('report-explorer').innerText = 'No on-chain state mutation';
             }
           }
+        }
+
+        if (logsRes.ok && logsRes.logs.length > 0) {
+          document.getElementById('log-count').innerText = logsRes.logs.length + ' logs recorded';
 
           // Table render
           const tbody = document.getElementById('logs-table-body');
@@ -221,7 +218,7 @@ app.get('/', (req, res) => {
               : '<span class="text-slate-500 text-xs">Passive Telemetry</span>';
             
             const actionText = log.summary?.autonomousDecision?.decision || log.action || 'CYCLE';
-            const deltaText = log.summary?.balanceTelemetry?.delta || '-';
+            const deltaText = log.summary?.balanceTelemetry?.delta || '0.0000 USDC';
 
             return '<tr class="hover:bg-slate-800/30 transition">' +
               '<td class="px-3 py-2.5 text-slate-400 font-mono text-xs">' + new Date(log.timestamp).toLocaleTimeString() + '</td>' +
@@ -242,6 +239,7 @@ app.get('/', (req, res) => {
       const icon = document.getElementById('toggle-icon');
       const text = document.getElementById('toggle-text');
       const intervalStat = document.getElementById('stat-interval');
+      const statusText = document.getElementById('stat-status-text');
 
       if (isRunning) {
         badge.innerText = '● RUNNING (60s)';
@@ -250,6 +248,7 @@ app.get('/', (req, res) => {
         icon.innerText = '⏸';
         text.innerText = 'Stop Autonomous Daemon';
         intervalStat.innerText = 'Every 60s';
+        statusText.innerText = 'Autonomous Loop Active';
       } else {
         badge.innerText = '⏸ PAUSED';
         badge.className = 'px-2.5 py-0.5 text-xs font-semibold rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30';
@@ -257,6 +256,7 @@ app.get('/', (req, res) => {
         icon.innerText = '▶';
         text.innerText = 'Start Autonomous Daemon';
         intervalStat.innerText = 'PAUSED';
+        statusText.innerText = 'Waiting for manual trigger';
       }
     }
 
@@ -288,7 +288,7 @@ app.get('/', (req, res) => {
       }
     }
 
-    setInterval(updateDashboard, 4000);
+    setInterval(updateDashboard, 3000);
     updateDashboard();
   </script>
 </body>
@@ -303,7 +303,14 @@ app.get('/api/fleet/status', async (req, res) => {
       orchestrator.mcpClient.getMscaStatus(),
       orchestrator.mcpClient.getAiRouterStatus(),
     ])
-    res.json({ ok: true, balances: walletBalances, mscaStatus, aiRouterStatus, daemonRunning: orchestrator.isRunning })
+    res.json({
+      ok: true,
+      balances: walletBalances,
+      mscaStatus,
+      aiRouterStatus,
+      daemonRunning: orchestrator.isRunning,
+      latestCycle: orchestrator.latestCycleSummary,
+    })
   } catch (error) {
     res.status(500).json({ ok: false, error: error.message })
   }

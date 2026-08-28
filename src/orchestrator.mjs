@@ -1,8 +1,7 @@
 /**
  * ARCOX Fleet Orchestrator
- * Coordinates pure autonomous Gemini 3.5 decision-making.
- * Performs Pre-Execution Balance Scan AND Post-Execution On-Chain Reconciliation
- * to ensure hyper-rational, continuous multi-session decision making.
+ * Coordinates pure autonomous Gemini decision-making.
+ * Stores latest live cycle telemetry directly in memory for instant web updates.
  */
 
 import { ArcoxApiClient } from './protocols/arcox-api-client.mjs'
@@ -41,10 +40,11 @@ export class FleetOrchestrator {
 
     this.isRunning = false
     this.daemonTimer = null
+    this.latestCycleSummary = null
   }
 
   /**
-   * Run 1 autonomous reasoning & execution cycle with Pre & Post Balance Scans
+   * Run 1 autonomous reasoning & execution cycle
    */
   async runAutonomousCycle(triggerSource = 'SCHEDULED_DAEMON') {
     console.log('\n================================================================================')
@@ -56,9 +56,7 @@ export class FleetOrchestrator {
     const cycleId = `cycle_${Date.now()}`
     const startTime = Date.now()
 
-    // -------------------------------------------------------------------------
-    // 📊 STEP 1: PRE-EXECUTION ON-CHAIN BALANCE SCAN
-    // -------------------------------------------------------------------------
+    // 1. Step 1: Pre-Execution Balance Scan
     console.log('📊 Step 1: [PRE-EXECUTION SCAN] Reading live on-chain balances & governance...')
     const [initialBalances, mscaStatus, aiRouterStatus] = await Promise.all([
       this.mcpClient.getWalletBalances(),
@@ -69,14 +67,10 @@ export class FleetOrchestrator {
     console.log(`   • Pre-Scan Arc Balance: ${initialUsdc} USDC (Native Gas)`)
     console.log(`   • AI Compute Runway: $${aiRouterStatus?.unifiedBalance?.totalConfirmedBalance} USDC`)
 
-    // -------------------------------------------------------------------------
-    // 🔍 STEP 2: SCOUT MARKET SNAPSHOT
-    // -------------------------------------------------------------------------
+    // 2. Step 2: Scout Market Snapshot
     const marketSignal = await this.scout.runScan()
 
-    // -------------------------------------------------------------------------
-    // 🧠 STEP 3: PURE AUTONOMOUS REASONING BY GEMINI 3.5 FLASH
-    // -------------------------------------------------------------------------
+    // 3. Step 3: Pure Autonomous Reasoning by Gemini
     const actionPlan = await this.strategist.evaluateAutonomousDecision({
       walletBalances: initialBalances,
       mscaStatus,
@@ -84,14 +78,10 @@ export class FleetOrchestrator {
       marketSignal,
     })
 
-    // -------------------------------------------------------------------------
-    // ⚡ STEP 4: ON-CHAIN EXECUTION VIA VIEM & ARCOX ROUTER
-    // -------------------------------------------------------------------------
+    // 4. Step 4: Execution via Viem & ARCOX Router
     const executionSummary = await this.executor.executeDirective(actionPlan)
 
-    // -------------------------------------------------------------------------
-    // 🔄 STEP 5: POST-EXECUTION BALANCE RECONCILIATION & AUDIT
-    // -------------------------------------------------------------------------
+    // 5. Step 5: Post-Execution Reconciliation
     console.log('\n🔄 Step 5: [POST-EXECUTION RECONCILIATION] Reading updated on-chain balance from Arc RPC...')
     const [finalBalances, updatedAiStatus] = await Promise.all([
       this.mcpClient.getWalletBalances(),
@@ -124,17 +114,13 @@ export class FleetOrchestrator {
       autonomousDecision: {
         decision: actionPlan.decision,
         reasoning: actionPlan.reasoning,
+        model: actionPlan.model,
         executionResult: executionSummary.result,
       },
     }
 
-    // Save full multi-session context to Memory Bank
-    await this.memoryBank.saveAgentState('fleet_state', {
-      lastBalance: finalUsdc,
-      lastDecision: actionPlan.decision,
-      lastTxHash: executionSummary.result?.txHash || null,
-      lastCycleAt: new Date().toISOString(),
-    })
+    // Update real-time memory snapshot
+    this.latestCycleSummary = summary
 
     await this.memoryBank.recordAuditLog({
       action: 'AUTONOMOUS_CYCLE_COMPLETE',
@@ -157,7 +143,7 @@ export class FleetOrchestrator {
     if (this.isRunning) return
     this.isRunning = true
 
-    console.log(`\n🤖 [Autonomous Daemon Active] Gemini 3.5 will scan balances at start & end of every cycle (${intervalSeconds}s).`)
+    console.log(`\n🤖 [Autonomous Daemon Active] Gemini will scan balances every ${intervalSeconds} seconds.`)
 
     // Run first cycle immediately
     this.runAutonomousCycle('DAEMON_STARTUP').catch(err => console.error('[Daemon Startup Error]:', err.message))
