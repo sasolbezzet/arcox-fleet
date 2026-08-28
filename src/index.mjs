@@ -15,7 +15,17 @@ const PORT = process.env.PORT || 8080
 
 app.use(express.json())
 
+// CORS middleware to allow Vercel frontend to query VPS backend seamlessly
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*')
+  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+  if (req.method === 'OPTIONS') return res.sendStatus(200)
+  next()
+})
+
 // Serve static files (including demo video & thumbnail)
+
 app.use(express.static(path.join(__dirname, '../public')))
 
 const orchestrator = new FleetOrchestrator({
@@ -176,12 +186,15 @@ app.get('/', (req, res) => {
 
   <script>
     let isDaemonActive = true;
+    const API_BASE = (window.location.hostname.includes('vercel.app')) 
+      ? 'https://43.134.14.43.nip.io/fleet' 
+      : '';
 
     async function updateDashboard() {
       try {
         const [statusRes, logsRes] = await Promise.all([
-          fetch('/api/fleet/status').then(r => r.json()),
-          fetch('/api/fleet/logs').then(r => r.json())
+          fetch(API_BASE + '/api/fleet/status').then(r => r.json()).catch(() => fetch('/api/fleet/status').then(r => r.json())),
+          fetch(API_BASE + '/api/fleet/logs').then(r => r.json()).catch(() => fetch('/api/fleet/logs').then(r => r.json()))
         ]);
 
         if (statusRes.ok) {
@@ -253,7 +266,7 @@ app.get('/', (req, res) => {
       const statusText = document.getElementById('stat-status-text');
 
       if (isRunning) {
-        badge.innerText = '● RUNNING (60s)';
+        badge.innerText = '● 24/7 RUNNING (60s)';
         badge.className = 'px-2.5 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 animate-pulse';
         btn.className = 'flex-1 md:flex-none px-3.5 py-2.5 text-xs md:text-sm font-semibold rounded-xl transition shadow-lg flex items-center justify-center gap-1.5 bg-rose-600 hover:bg-rose-500 text-white';
         icon.innerText = '⏸';
@@ -274,7 +287,7 @@ app.get('/', (req, res) => {
     async function toggleDaemon() {
       const action = isDaemonActive ? 'stop' : 'start';
       try {
-        const res = await fetch('/api/fleet/daemon/' + action, { method: 'POST' }).then(r => r.json());
+        const res = await fetch(API_BASE + '/api/fleet/daemon/' + action, { method: 'POST' }).then(r => r.json());
         if (res.ok) {
           isDaemonActive = res.running;
           updateDaemonUI(isDaemonActive);
@@ -289,7 +302,7 @@ app.get('/', (req, res) => {
       btn.innerText = '⏳ Scanning...';
       btn.disabled = true;
       try {
-        await fetch('/api/fleet/run-cycle', { method: 'POST' });
+        await fetch(API_BASE + '/api/fleet/run-cycle', { method: 'POST' });
         await updateDashboard();
       } catch (e) {
         alert('Failed: ' + e.message);
@@ -299,19 +312,10 @@ app.get('/', (req, res) => {
       }
     }
 
-    let hasAutoScanned = false;
-
-    async function initClient() {
-      await updateDashboard();
-      if (!hasAutoScanned) {
-        hasAutoScanned = true;
-        fetch('/api/fleet/run-cycle', { method: 'POST' }).then(() => updateDashboard());
-      }
-    }
-
     setInterval(updateDashboard, 3000);
-    initClient();
+    updateDashboard();
   </script>
+
 
 </body>
 </html>`)
