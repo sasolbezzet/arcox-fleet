@@ -3,7 +3,9 @@
 Autonomous multi-agent orchestrator for on-chain execution and self-funding AI workflows on the Arc Network.
 
 **Hackathon Track:** Track 3 — The Fortified Enterprise Fleet  
-**Hackathon:** All Things Agentic Hackathon (Google & Devpost)
+**Hackathon:** All Things Agentic Hackathon (Google & Devpost)  
+**Live Web Monitor:** [https://arcox-fleet.vercel.app](https://arcox-fleet.vercel.app)
+
 
 ---
 
