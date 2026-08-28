@@ -1,15 +1,22 @@
 /**
  * ARCOX Fleet HTTP Server & Real-Time Interactive Monitoring Dashboard
+ * With MP4 Demo Video Hosting and Instant Download
  */
 
 import 'dotenv/config'
 import express from 'express'
+import path from 'path'
+import { fileURLToPath } from 'url'
 import { FleetOrchestrator } from './orchestrator.mjs'
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const app = express()
 const PORT = process.env.PORT || 8080
 
 app.use(express.json())
+
+// Serve static files (including demo video)
+app.use(express.static(path.join(__dirname, '../public')))
 
 const orchestrator = new FleetOrchestrator({
   apiBaseUrl: process.env.ARCOX_API_BASE_URL,
@@ -50,11 +57,14 @@ app.get('/', (req, res) => {
 
       <!-- Action Buttons -->
       <div class="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
+        <a href="/arcox-fleet-demo.mp4" download class="flex-1 md:flex-none px-4 py-2.5 text-xs md:text-sm font-semibold rounded-xl bg-teal-600 hover:bg-teal-500 text-white transition shadow-lg flex items-center justify-center gap-2">
+          <span>📥</span> <span>Download Demo Video (1080p MP4)</span>
+        </a>
         <button id="btn-toggle-daemon" onclick="toggleDaemon()" class="flex-1 md:flex-none px-4 py-2.5 text-xs md:text-sm font-semibold rounded-xl transition shadow-lg flex items-center justify-center gap-2 bg-rose-600 hover:bg-rose-500 text-white">
-          <span id="toggle-icon">⏸</span> <span id="toggle-text">Stop Autonomous Daemon</span>
+          <span id="toggle-icon">⏸</span> <span id="toggle-text">Stop Daemon</span>
         </button>
         <button id="btn-trigger" onclick="triggerManualCycle()" class="flex-1 md:flex-none px-4 py-2.5 text-xs md:text-sm font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white transition shadow-lg flex items-center justify-center gap-2 active:scale-95">
-          <span>⚡</span> <span>Scan & Reason Now</span>
+          <span>⚡</span> <span>Scan Now</span>
         </button>
       </div>
     </header>
@@ -246,7 +256,7 @@ app.get('/', (req, res) => {
         badge.className = 'px-2.5 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 animate-pulse';
         btn.className = 'flex-1 md:flex-none px-4 py-2.5 text-xs md:text-sm font-semibold rounded-xl transition shadow-lg flex items-center justify-center gap-2 bg-rose-600 hover:bg-rose-500 text-white';
         icon.innerText = '⏸';
-        text.innerText = 'Stop Autonomous Daemon';
+        text.innerText = 'Stop Daemon';
         intervalStat.innerText = 'Every 60s';
         statusText.innerText = 'Autonomous Loop Active';
       } else {
@@ -254,7 +264,7 @@ app.get('/', (req, res) => {
         badge.className = 'px-2.5 py-0.5 text-xs font-semibold rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30';
         btn.className = 'flex-1 md:flex-none px-4 py-2.5 text-xs md:text-sm font-semibold rounded-xl transition shadow-lg flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white';
         icon.innerText = '▶';
-        text.innerText = 'Start Autonomous Daemon';
+        text.innerText = 'Start Daemon';
         intervalStat.innerText = 'PAUSED';
         statusText.innerText = 'Waiting for manual trigger';
       }
@@ -283,7 +293,7 @@ app.get('/', (req, res) => {
       } catch (e) {
         alert('Failed: ' + e.message);
       } finally {
-        btn.innerHTML = '<span>⚡</span> <span>Scan & Reason Now</span>';
+        btn.innerHTML = '<span>⚡</span> <span>Scan Now</span>';
         btn.disabled = false;
       }
     }
@@ -295,7 +305,13 @@ app.get('/', (req, res) => {
 </html>`)
 })
 
-// 2. Real-time Status API
+// 2. Direct Video Download Route
+app.get('/download-demo', (req, res) => {
+  const filePath = path.join(__dirname, '../public/arcox-fleet-demo.mp4')
+  res.download(filePath, 'ARCOX_Fleet_Google_Hackathon_Demo.mp4')
+})
+
+// 3. Real-time Status API
 app.get('/api/fleet/status', async (req, res) => {
   try {
     const [walletBalances, mscaStatus, aiRouterStatus] = await Promise.all([
@@ -316,7 +332,7 @@ app.get('/api/fleet/status', async (req, res) => {
   }
 })
 
-// 3. Daemon Control APIs: Start & Stop
+// 4. Daemon Control APIs: Start & Stop
 app.post('/api/fleet/daemon/start', (req, res) => {
   const interval = Number(process.env.AUTONOMOUS_INTERVAL_SECONDS) || 60
   orchestrator.startAutonomousDaemon(interval)
@@ -328,7 +344,7 @@ app.post('/api/fleet/daemon/stop', (req, res) => {
   res.json({ ok: true, running: false, message: 'Autonomous daemon stopped' })
 })
 
-// 4. Trigger API
+// 5. Trigger API
 app.post('/api/fleet/run-cycle', async (req, res) => {
   try {
     const result = await orchestrator.runAutonomousCycle('API_REQUEST')
@@ -338,7 +354,7 @@ app.post('/api/fleet/run-cycle', async (req, res) => {
   }
 })
 
-// 5. Audit logs API
+// 6. Audit logs API
 app.get('/api/fleet/logs', async (req, res) => {
   try {
     const logs = await orchestrator.memoryBank.listRecentLogs(25)
