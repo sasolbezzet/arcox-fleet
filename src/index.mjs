@@ -67,7 +67,7 @@ app.get('/', (req, res) => {
 
       <!-- Action Buttons -->
       <div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
-        <button id="btn-faucet" onclick="claimFaucet()" class="flex-1 md:flex-none px-3.5 py-2.5 text-xs md:text-sm font-semibold rounded-xl bg-amber-600 hover:bg-amber-500 text-white transition shadow-lg flex items-center justify-center gap-1.5 active:scale-95">
+        <button id="btn-faucet" onclick="openFaucetModal()" class="flex-1 md:flex-none px-3.5 py-2.5 text-xs md:text-sm font-semibold rounded-xl bg-amber-600 hover:bg-amber-500 text-white transition shadow-lg flex items-center justify-center gap-1.5 active:scale-95">
           <span>🚰</span> <span>Claim Faucet</span>
         </button>
         <a href="/thumbnail.png" download="ARCOX_Fleet_Thumbnail.png" class="flex-1 md:flex-none px-3 py-2.5 text-xs md:text-sm font-semibold rounded-xl bg-slate-700 hover:bg-slate-600 text-white transition shadow-lg flex items-center justify-center gap-1">
@@ -83,6 +83,7 @@ app.get('/', (req, res) => {
           <span>⚡</span> <span>Scan Now</span>
         </button>
       </div>
+
     </header>
 
     <!-- Key Metrics Cards -->
@@ -219,7 +220,49 @@ app.get('/', (req, res) => {
       </div>
     </div>
 
+    <!-- Faucet Modal -->
+    <div id="faucet-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
+      <div class="bg-cardbg border border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="text-2xl">🚰</span>
+            <h3 class="text-lg font-bold text-white">Circle Testnet USDC Faucet</h3>
+          </div>
+          <button onclick="closeFaucetModal()" class="text-slate-400 hover:text-white text-xl font-bold p-1">✕</button>
+        </div>
+
+        <p class="text-xs text-slate-300">
+          Anda bisa klaim 10 USDC testnet gratis langsung di <b>faucet.circle.com</b> atau jalankan auto-refuel backend.
+        </p>
+
+        <div class="bg-subcard border border-slate-800 rounded-xl p-3 space-y-1.5">
+          <div class="text-[11px] text-slate-400 font-semibold uppercase">Fleet Agent Wallet Address:</div>
+          <div class="flex items-center justify-between gap-2">
+            <span id="faucet-wallet-addr" class="font-mono text-xs text-indigo-300 break-all select-all font-semibold">0xf60C1BE48c75E890bF9943C104a0Da5B62A07299</span>
+            <button onclick="copyWalletAddress()" class="px-2.5 py-1 text-xs rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white shrink-0 font-medium">
+              <span id="copy-btn-text">Copy</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="space-y-2 pt-1">
+          <a href="https://faucet.circle.com/" target="_blank" onclick="copyAndOpenCircleFaucet()" class="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg transition active:scale-95">
+            <span>📋</span>
+            <span>Salin Address & Buka Circle Faucet ↗</span>
+          </a>
+          <p class="text-[11px] text-center text-slate-400">
+            (Pilih Arc Testnet di web Circle, tempel address di atas, lalu klik Send)
+          </p>
+          <button id="btn-modal-autorefuel" onclick="claimFaucetBackend()" class="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs flex items-center justify-center gap-2 border border-slate-700 transition">
+            <span>⚡</span>
+            <span>Atau Jalankan Auto-Refuel Backend</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
   </div>
+
 
   <script>
     let isDaemonActive = true;
@@ -359,25 +402,53 @@ app.get('/', (req, res) => {
       }
     }
 
-    async function claimFaucet() {
-      const btn = document.getElementById('btn-faucet');
-      btn.innerText = '⏳ Refueling...';
+    function openFaucetModal() {
+      const modal = document.getElementById('faucet-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeFaucetModal() {
+      const modal = document.getElementById('faucet-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function copyWalletAddress() {
+      const addr = document.getElementById('faucet-wallet-addr').innerText;
+      navigator.clipboard.writeText(addr).then(() => {
+        const btn = document.getElementById('copy-btn-text');
+        btn.innerText = 'Copied! ✓';
+        setTimeout(() => { btn.innerText = 'Copy'; }, 2500);
+      });
+    }
+
+    function copyAndOpenCircleFaucet() {
+      const addr = document.getElementById('faucet-wallet-addr').innerText;
+      navigator.clipboard.writeText(addr);
+    }
+
+    async function claimFaucetBackend() {
+      const btn = document.getElementById('btn-modal-autorefuel');
+      btn.innerText = '⏳ Refueling via backend...';
       btn.disabled = true;
       try {
         const res = await requestFleetApi('/api/fleet/claim-faucet', { method: 'POST' });
         if (res && res.ok && res.result) {
           alert('🚰 Faucet Refilled! ' + res.result.claimedAmount + ' added to wallet on Arc Testnet.');
           await updateDashboard();
+          closeFaucetModal();
         } else {
           alert('Faucet notice: ' + (res?.error || 'Request processed'));
         }
       } catch (e) {
         alert('Faucet error: ' + e.message);
       } finally {
-        btn.innerHTML = '<span>🚰</span> <span>Claim Faucet</span>';
+        btn.innerHTML = '<span>⚡</span> <span>Atau Jalankan Auto-Refuel Backend</span>';
         btn.disabled = false;
       }
     }
+
 
     async function triggerManualCycle() {
       const btn = document.getElementById('btn-trigger');
