@@ -56,15 +56,24 @@ export class ExecutorAgent {
         break
       }
 
+      case 'X402_ARKHAM_WHALE_INTEL':
+      case 'X402_DEFILLAMA_YIELD_INTEL':
+      case 'X402_COINGECKO_DEPTH_INTEL':
+      case 'X402_ARC_GAS_INTEL':
+      case 'X402_CCTP_ARBITRAGE_INTEL':
       case 'X402_INTEL': {
-        console.log(`[${this.agentId}] 💳 Settling x402 on-chain intelligence invoice...`)
-        executionResult = await this.mcpClient.payX402Invoice({
-          recipient: params.recipient || '0x5294E9927c3306DcBaDb03fe70b92e01cCede505',
-          amount: params.amount || '0.005',
-          token: 'USDC',
-          paymentId: `pay_${Date.now()}`,
-        })
-        console.log(`   • x402 Micropayment Confirmed on Arc Testnet! TxHash: ${executionResult.txHash}`)
+        const intelServiceId = decision === 'X402_INTEL' ? 'X402_ARKHAM_WHALE_INTEL' : decision
+        console.log(`[${this.agentId}] 💳 Querying & paying for Premium x402 Intelligence: [${intelServiceId}]...`)
+        executionResult = await this.mcpClient.queryPremiumX402Intel(intelServiceId, params)
+        console.log(`   • x402 Intel Unlocked! Cost: ${executionResult.costPaid} | TxHash: ${executionResult.txHash}`)
+        console.log(`   • Intelligence Payload: ${JSON.stringify(executionResult.unlockedPayload)}`)
+        break
+      }
+
+      case 'CLAIM_USDC_FAUCET': {
+        console.log(`[${this.agentId}] 🚰 Triggering autonomous Circle / Arc Testnet USDC Faucet claim...`)
+        executionResult = await this.mcpClient.claimTestnetUsdcFaucet(params.recipient)
+        console.log(`   • Faucet Disbursed: +${executionResult.claimedAmount}! TxHash: ${executionResult.txHash}`)
         break
       }
 
@@ -80,6 +89,7 @@ export class ExecutorAgent {
         break
       }
     }
+
 
     const executionSummary = {
       sender: this.agentId,

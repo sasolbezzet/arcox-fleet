@@ -66,17 +66,20 @@ app.get('/', (req, res) => {
       </div>
 
       <!-- Action Buttons -->
-      <div class="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
-        <a href="/thumbnail.png" download="ARCOX_Fleet_Thumbnail.png" class="flex-1 md:flex-none px-3.5 py-2.5 text-xs md:text-sm font-semibold rounded-xl bg-slate-700 hover:bg-slate-600 text-white transition shadow-lg flex items-center justify-center gap-1.5">
-          <span>🖼️</span> <span>Thumbnail (3:2)</span>
+      <div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
+        <button id="btn-faucet" onclick="claimFaucet()" class="flex-1 md:flex-none px-3.5 py-2.5 text-xs md:text-sm font-semibold rounded-xl bg-amber-600 hover:bg-amber-500 text-white transition shadow-lg flex items-center justify-center gap-1.5 active:scale-95">
+          <span>🚰</span> <span>Claim Faucet</span>
+        </button>
+        <a href="/thumbnail.png" download="ARCOX_Fleet_Thumbnail.png" class="flex-1 md:flex-none px-3 py-2.5 text-xs md:text-sm font-semibold rounded-xl bg-slate-700 hover:bg-slate-600 text-white transition shadow-lg flex items-center justify-center gap-1">
+          <span>🖼️</span> <span>Thumbnail</span>
         </a>
-        <a href="/arcox-fleet-demo.mp4" download="ARCOX_Fleet_Demo.mp4" class="flex-1 md:flex-none px-3.5 py-2.5 text-xs md:text-sm font-semibold rounded-xl bg-teal-600 hover:bg-teal-500 text-white transition shadow-lg flex items-center justify-center gap-1.5">
+        <a href="/arcox-fleet-demo.mp4" download="ARCOX_Fleet_Demo.mp4" class="flex-1 md:flex-none px-3 py-2.5 text-xs md:text-sm font-semibold rounded-xl bg-teal-600 hover:bg-teal-500 text-white transition shadow-lg flex items-center justify-center gap-1">
           <span>📥</span> <span>Demo Video</span>
         </a>
-        <button id="btn-toggle-daemon" onclick="toggleDaemon()" class="flex-1 md:flex-none px-3.5 py-2.5 text-xs md:text-sm font-semibold rounded-xl transition shadow-lg flex items-center justify-center gap-1.5 bg-rose-600 hover:bg-rose-500 text-white">
-          <span id="toggle-icon">⏸</span> <span id="toggle-text">Stop Daemon</span>
+        <button id="btn-toggle-daemon" onclick="toggleDaemon()" class="flex-1 md:flex-none px-3 py-2.5 text-xs md:text-sm font-semibold rounded-xl transition shadow-lg flex items-center justify-center gap-1 bg-rose-600 hover:bg-rose-500 text-white">
+          <span id="toggle-icon">⏸</span> <span id="toggle-text">Stop</span>
         </button>
-        <button id="btn-trigger" onclick="triggerManualCycle()" class="flex-1 md:flex-none px-3.5 py-2.5 text-xs md:text-sm font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white transition shadow-lg flex items-center justify-center gap-1.5 active:scale-95">
+        <button id="btn-trigger" onclick="triggerManualCycle()" class="flex-1 md:flex-none px-3.5 py-2.5 text-xs md:text-sm font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white transition shadow-lg flex items-center justify-center gap-1 active:scale-95">
           <span>⚡</span> <span>Scan Now</span>
         </button>
       </div>
@@ -105,6 +108,40 @@ app.get('/', (req, res) => {
         <div class="text-[11px] text-amber-400 mt-0.5 font-mono" id="stat-status-text">Autonomous Loop Active</div>
       </div>
     </div>
+
+    <!-- Active x402 Premium Intelligence Feeds Banner -->
+    <div class="bg-cardbg border border-slate-800 rounded-2xl p-4 shadow-xl">
+      <div class="flex items-center justify-between mb-2.5">
+        <div class="flex items-center gap-2">
+          <span class="text-lg">📡</span>
+          <h3 class="text-sm font-bold text-white uppercase tracking-wider">Active x402 Premium Intelligence Feeds (Auto-Paid via Micro-USDC)</h3>
+        </div>
+        <span class="text-[11px] text-teal-400 font-mono">Auto-Pay Active</span>
+      </div>
+      <div class="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs font-mono">
+        <div class="bg-subcard border border-slate-800/80 rounded-lg p-2.5">
+          <div class="text-slate-400 text-[10px]">1. Arkham Whale Flow</div>
+          <div class="text-teal-300 font-semibold mt-0.5">0.005 USDC/call</div>
+        </div>
+        <div class="bg-subcard border border-slate-800/80 rounded-lg p-2.5">
+          <div class="text-slate-400 text-[10px]">2. DefiLlama Yield & TVL</div>
+          <div class="text-teal-300 font-semibold mt-0.5">0.003 USDC/call</div>
+        </div>
+        <div class="bg-subcard border border-slate-800/80 rounded-lg p-2.5">
+          <div class="text-slate-400 text-[10px]">3. CoinGecko Depth</div>
+          <div class="text-teal-300 font-semibold mt-0.5">0.004 USDC/call</div>
+        </div>
+        <div class="bg-subcard border border-slate-800/80 rounded-lg p-2.5">
+          <div class="text-slate-400 text-[10px]">4. Arc Gas & MEV Forecast</div>
+          <div class="text-teal-300 font-semibold mt-0.5">0.002 USDC/call</div>
+        </div>
+        <div class="bg-subcard border border-slate-800/80 rounded-lg p-2.5 col-span-2 md:col-span-1">
+          <div class="text-slate-400 text-[10px]">5. CCTP Cross-Chain Arb</div>
+          <div class="text-teal-300 font-semibold mt-0.5">0.005 USDC/call</div>
+        </div>
+      </div>
+    </div>
+
 
     <!-- Live Real-Time Gemini Reasoning Box -->
     <div class="bg-cardbg border border-indigo-500/30 rounded-2xl p-5 md:p-6 shadow-xl relative overflow-hidden">
@@ -297,6 +334,26 @@ app.get('/', (req, res) => {
       }
     }
 
+    async function claimFaucet() {
+      const btn = document.getElementById('btn-faucet');
+      btn.innerText = '⏳ Refueling...';
+      btn.disabled = true;
+      try {
+        const res = await fetch(API_BASE + '/api/fleet/claim-faucet', { method: 'POST' }).then(r => r.json());
+        if (res.ok) {
+          alert('🚰 Faucet Refilled! ' + res.result.claimedAmount + ' added to wallet on Arc Testnet.');
+          await updateDashboard();
+        } else {
+          alert('Faucet notice: ' + (res.error || 'Request processed'));
+        }
+      } catch (e) {
+        alert('Faucet error: ' + e.message);
+      } finally {
+        btn.innerHTML = '<span>🚰</span> <span>Claim Faucet</span>';
+        btn.disabled = false;
+      }
+    }
+
     async function triggerManualCycle() {
       const btn = document.getElementById('btn-trigger');
       btn.innerText = '⏳ Scanning...';
@@ -336,7 +393,6 @@ app.get('/download-architecture', (req, res) => {
   const filePath = path.join(__dirname, '../public/architecture_diagram.png')
   res.download(filePath, 'ARCOX_Fleet_Architecture_Diagram.png')
 })
-
 
 // 3. Real-time Status API
 app.get('/api/fleet/status', async (req, res) => {
@@ -381,6 +437,17 @@ app.post('/api/fleet/run-cycle', async (req, res) => {
   }
 })
 
+// 5b. Faucet Claim API
+app.post('/api/fleet/claim-faucet', async (req, res) => {
+  try {
+    const walletAddress = orchestrator.mcpClient.account ? orchestrator.mcpClient.account.address : req.body.address
+    const result = await orchestrator.mcpClient.claimTestnetUsdcFaucet(walletAddress)
+    res.json({ ok: true, result })
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message })
+  }
+})
+
 // 6. Audit logs API
 app.get('/api/fleet/logs', async (req, res) => {
   try {
@@ -390,6 +457,7 @@ app.get('/api/fleet/logs', async (req, res) => {
     res.status(500).json({ ok: false, error: error.message })
   }
 })
+
 
 if (process.env.VERCEL !== '1') {
   app.listen(PORT, () => {
