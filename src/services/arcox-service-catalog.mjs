@@ -22,6 +22,15 @@ export const ARCOX_SERVICE_CATALOG = {
       whenToUse: 'When you want to rebalance liquidity, capture price spreads, or acquire assets on Arc Testnet.',
     },
     {
+      id: 'BRIDGE',
+      name: 'ARCOX CCTP Cross-Chain Bridge',
+      description: 'Bridge USDC across Arc Testnet, Base Sepolia, and Arbitrum Sepolia via verified ArcoxRouter (0xDf800310443BEB589CEf91A09854203Ea36e43a7) + Circle CCTP V2 depositForBurn.',
+      tools: ['arcox_quote_bridge', 'arcox_execute_bridge', 'arcox_bridge_status'],
+      parameters: { fromChain: 'Arc_Testnet', toChain: 'Base_Sepolia', amount: '0.01 USDC' },
+      whenToUse: 'When transferring liquidity cross-chain, executing cross-chain arbitrage, or settling on Base/Arbitrum.',
+    },
+
+    {
       id: 'INTEL_GET_TOKEN',
       name: 'ARCOX Intel: Token Intelligence (x402 Paid)',
       description: 'Fetch real-time Arkham token intelligence, price history, market volume, holders, and trending tokens.',

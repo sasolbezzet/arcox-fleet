@@ -60,19 +60,22 @@ ${JSON.stringify(ARCOX_SERVICE_CATALOG.services, null, 2)}
    - "INTEL_GET_HYPERCORE": Pay 0.02 USDC to analyze perpetual futures positioning & funding rates.
    - "INTEL_GET_RISK": Pay 0.03 USDC to audit on-chain compliance risk scores.
    - "SWAP": Execute token swaps on Arc DEX when you have > 0.2 USDC and positive intel signals.
+   - "BRIDGE": Execute CCTP cross-chain bridge (Arc Testnet -> Base Sepolia) via ArcoxRouter.bridgeUsdcWithFee.
    - "TOPUP_AI_ROUTER": If compute runway is low, allocate 0.01-0.05 USDC to Unified Balance.
    - "HOLD_AND_MONITOR": Strategically monitor the network without state changes.
-2. Avoid picking the exact same action 3 times in a row. Rotate actively across the native ARCOX intelligence suite.
+2. Avoid picking the exact same action 3 times in a row. Rotate actively across the native ARCOX intelligence and execution suite.
 3. Provide a rich, thoughtful, multi-sentence reasoning explaining your exact thought process and why this action is optimal right now.
 
 Return ONLY a valid JSON object matching this schema:
 {
-  "decision": "HOLD_AND_MONITOR" | "SWAP" | "INTEL_GET_TOKEN" | "INTEL_GET_ADDRESS" | "INTEL_GET_ENTITY" | "INTEL_GET_SWAPS" | "INTEL_GET_POLYMARKET" | "INTEL_GET_HYPERCORE" | "INTEL_GET_RISK" | "TOPUP_AI_ROUTER" | "CLAIM_USDC_FAUCET",
+  "decision": "HOLD_AND_MONITOR" | "SWAP" | "BRIDGE" | "INTEL_GET_TOKEN" | "INTEL_GET_ADDRESS" | "INTEL_GET_ENTITY" | "INTEL_GET_SWAPS" | "INTEL_GET_POLYMARKET" | "INTEL_GET_HYPERCORE" | "INTEL_GET_RISK" | "TOPUP_AI_ROUTER" | "CLAIM_USDC_FAUCET",
   "reasoning": "Detailed multi-sentence explanation of your autonomous reasoning and strategic rationale for this cycle",
   "actionParams": {
     "tokenIn": "USDC",
     "tokenOut": "cirBTC",
-    "amount": "0.1",
+    "fromChain": "Arc_Testnet",
+    "toChain": "Base_Sepolia",
+    "amount": "0.01",
     "id": "BTC",
     "recipient": "0x5294E9927c3306DcBaDb03fe70b92e01cCede505"
   }
@@ -117,8 +120,11 @@ Return ONLY a valid JSON object matching this schema:
         decision = 'SWAP'
         reasoning = 'Arkham token metrics confirmed positive volume momentum on Arc DEX. Executing swap of 0.1 USDC -> cirBTC.'
       } else if (lastAction === 'SWAP') {
+        decision = 'BRIDGE'
+        reasoning = 'Swap complete. Executing real CCTP cross-chain bridge of 0.01 USDC (Arc Testnet -> Base Sepolia) via ArcoxRouter contract to rebalance liquidity.'
+      } else if (lastAction === 'BRIDGE') {
         decision = 'INTEL_GET_ADDRESS'
-        reasoning = 'Swap confirmed. Calling ARCOX Intel (arcox_intel_get_address) via x402 memo (0.01 USDC) to inspect whale counterparties and wallet flows.'
+        reasoning = 'Bridge burn confirmed. Calling ARCOX Intel (arcox_intel_get_address) via x402 memo (0.01 USDC) to inspect whale counterparties and wallet flows.'
       } else if (lastAction === 'INTEL_GET_ADDRESS') {
         decision = 'HOLD_AND_MONITOR'
         reasoning = `Market wallet flows are consolidating. Holding current position (${usdcBal} USDC) to observe network stability.`
@@ -133,7 +139,9 @@ Return ONLY a valid JSON object matching this schema:
         actionParams: {
           tokenIn: 'USDC',
           tokenOut: 'cirBTC',
-          amount: '0.1',
+          fromChain: 'Arc_Testnet',
+          toChain: 'Base_Sepolia',
+          amount: '0.01',
           id: 'BTC',
           recipient: '0x5294E9927c3306DcBaDb03fe70b92e01cCede505',
         },

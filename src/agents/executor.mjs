@@ -40,6 +40,27 @@ export class ExecutorAgent {
         break
       }
 
+      case 'BRIDGE': {
+        const fromChain = params.fromChain || 'Arc_Testnet'
+        const toChain = params.toChain || 'Base_Sepolia'
+        const amount = params.amount || '0.01'
+
+        console.log(`[${this.agentId}] 1️⃣ Calling arcox_quote_bridge for ${amount} USDC (${fromChain} -> ${toChain})...`)
+        const quote = await this.mcpClient.quoteBridge({ fromChain, toChain, amount })
+        console.log(`   • Preview ID: ${quote.previewId} | Net Amount: ${quote.netAmount} | Fee: ${quote.platformFee}`)
+
+        console.log(`[${this.agentId}] 2️⃣ Executing arcox_execute_bridge (approve -> bridgeUsdcWithFee on ArcoxRouter)...`)
+        executionResult = await this.mcpClient.executeBridge({
+          previewId: quote.previewId,
+          confirmationText: 'yes',
+          confirmed: true,
+        })
+        console.log(`   • CCTP Burn Confirmed on Arc Testnet! TxHash: ${executionResult.txHash}`)
+        console.log(`   • Explorer: ${executionResult.explorerUrl}`)
+        break
+      }
+
+
       case 'TOPUP_AI_ROUTER': {
         const amount = params.amount || '1.0'
         console.log(`[${this.agentId}] 1️⃣ Quoting AI Router Unified Balance Deposit for ${amount} USDC...`)

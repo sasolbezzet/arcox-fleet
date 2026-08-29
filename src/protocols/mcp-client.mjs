@@ -5,7 +5,7 @@
  */
 
 import { randomUUID } from 'node:crypto'
-import { createWalletClient, createPublicClient, http, parseUnits, formatUnits } from 'viem'
+import { createWalletClient, createPublicClient, http, parseUnits, formatUnits, pad, getAddress } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 
 const ARC_CHAIN = {
@@ -31,6 +31,16 @@ const ERC20_ABI = [
     type: 'function',
   },
   {
+    inputs: [
+      { internalType: 'address', name: 'spender', type: 'address' },
+      { internalType: 'uint256', name: 'amount', type: 'uint256' },
+    ],
+    name: 'approve',
+    outputs: [{ internalType: 'bool', name: '', type: 'bool' }],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
     inputs: [{ internalType: 'address', name: 'account', type: 'address' }],
     name: 'balanceOf',
     outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
@@ -38,6 +48,30 @@ const ERC20_ABI = [
     type: 'function',
   },
 ]
+
+const BRIDGE_ROUTER_ABI = [
+  {
+    type: 'function', name: 'quoteFee', stateMutability: 'view',
+    inputs: [{ name: 'amount', type: 'uint256' }],
+    outputs: [{ name: 'fee', type: 'uint256' }, { name: 'netAmount', type: 'uint256' }],
+  },
+  {
+    type: 'function', name: 'bridgeUsdcWithFee', stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'amount', type: 'uint256' },
+      { name: 'destinationDomain', type: 'uint32' },
+      { name: 'mintRecipient', type: 'bytes32' },
+      { name: 'destinationCaller', type: 'bytes32' },
+      { name: 'maxFee', type: 'uint256' },
+      { name: 'minFinalityThreshold', type: 'uint32' },
+    ],
+    outputs: [{ name: 'fee', type: 'uint256' }, { name: 'netAmount', type: 'uint256' }],
+  },
+  { type: 'function', name: 'usdc', stateMutability: 'view', inputs: [], outputs: [{ type: 'address' }] },
+  { type: 'function', name: 'tokenMessenger', stateMutability: 'view', inputs: [], outputs: [{ type: 'address' }] },
+  { type: 'function', name: 'localDomain', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint32' }] },
+]
+
 
 export class ArcoxMcpClient {
   constructor({
@@ -404,7 +438,7 @@ export class ArcoxMcpClient {
     this.quoteStore.delete(previewId)
 
     // Execute real on-chain transaction to Router
-    const onChainResult = await this.executeOnChainTransfer(ARCOX_ROUTER_ADDRESS, quote.amountIn, 'DEX_SWAP')
+    const onChainResult = await this.executeOnChainTransfer(ARCOX_ROUTER_ADDRESS, quote.amountIn, 'ARCOX_DEX_SWAP')
 
     return {
       ok: true,
@@ -421,6 +455,132 @@ export class ArcoxMcpClient {
       timestamp: new Date().toISOString(),
     }
   }
+
+  /**
+   * 6b. Quote CCTP Cross-Chain Bridge
+   */
+  async quoteBridge({ fromChain = 'Arc_Testnet', toChain = 'Base_Sepolia', amount = '0.01', token = 'USDC' } = {}) {
+    const previewId = `prv_brg_${randomUUID().slice(0, 8)}`
+    let platformFee = '0.000030'
+    let netAmount = amount
+
+    if (this.publicClient) {
+      try {
+        const amountBase = parseUnits(String(amount), 6)
+        const feeQuote = await this.publicClient.readContract({
+          address: ARCOX_ROUTER_ADDRESS,
+          abi: BRIDGE_ROUTER_ABI,
+          functionName: 'quoteFee',
+          args: [amountBase],
+        })
+        if (feeQuote && feeQuote[0] !== undefined) {
+          platformFee = formatUnits(feeQuote[0], 6)
+          netAmount = formatUnits(feeQuote[1], 6)
+        }
+      } catch (err) {
+        console.warn('[Bridge Quote] Contract fee quote fallback:', err.message)
+      }
+    }
+
+    const quote = {
+      previewId,
+      intent: 'bridge',
+      fromChain,
+      toChain,
+      token,
+      amount: String(amount),
+      platformFee: `${platformFee} USDC`,
+      netAmount: `${netAmount} USDC`,
+      destinationDomain: toChain.includes('Arbitrum') ? 3 : 6,
+      cctpFastFinality: '1,000 blocks (Fast Transfer)',
+      expiresAt: Date.now() + 60000,
+    }
+    this.quoteStore.set(previewId, quote)
+    return { ok: true, ...quote }
+  }
+
+  /**
+   * 6c. Execute Real CCTP Bridge via ArcoxRouter Contract Call
+   */
+  async executeBridge({ previewId, confirmationText = 'yes', confirmed = true }) {
+    if (!confirmed || !['yes', 'ya'].includes(String(confirmationText).toLowerCase().trim())) {
+      throw new Error('Bridge execution rejected: explicit confirmation "yes" is required.')
+    }
+    const quote = this.quoteStore.get(previewId)
+    if (!quote) throw new Error(`Expired previewId: ${previewId}`)
+
+    this.quoteStore.delete(previewId)
+
+    if (!this.isEoaReal) {
+      const mockHash = `0x${randomUUID().replace(/-/g, '')}`.slice(0, 66)
+      return {
+        ok: true,
+        isReal: false,
+        status: 'BURN_CONFIRMED',
+        intent: 'bridge',
+        fromChain: quote.fromChain,
+        toChain: quote.toChain,
+        amount: quote.amount,
+        txHash: mockHash,
+        explorerUrl: `https://testnet.arcscan.app/tx/${mockHash}`,
+        timestamp: new Date().toISOString(),
+      }
+    }
+
+    console.log(`[CCTP Bridge] 🌉 Executing Real On-Chain Bridge of ${quote.amount} USDC from ${quote.fromChain} to ${quote.toChain}...`)
+    const amountBase = parseUnits(String(quote.amount), 6)
+
+    // 1. Approve ArcoxRouter on USDC contract
+    console.log(`[CCTP Bridge] 1️⃣ Approving ArcoxRouter (${ARCOX_ROUTER_ADDRESS}) on USDC contract...`)
+    const approveTx = await this.walletClient.writeContract({
+      address: USDC_ADDRESS,
+      abi: ERC20_ABI,
+      functionName: 'approve',
+      args: [ARCOX_ROUTER_ADDRESS, amountBase],
+    })
+    console.log(`[CCTP Bridge] ⏳ Waiting for approve confirmation (Tx: ${approveTx})...`)
+    await this.publicClient.waitForTransactionReceipt({ hash: approveTx })
+    console.log(`[CCTP Bridge] ✅ Router Approved!`)
+
+    // 2. Call bridgeUsdcWithFee on ArcoxRouter
+    const recipientBytes32 = pad(this.account.address, { size: 32 })
+    const destinationCaller = '0x0000000000000000000000000000000000000000000000000000000000000000'
+    const destDomain = Number(quote.destinationDomain) || 6
+
+    console.log(`[CCTP Bridge] 2️⃣ Calling bridgeUsdcWithFee on ArcoxRouter (Domain: ${destDomain})...`)
+    const bridgeTx = await this.walletClient.writeContract({
+      address: ARCOX_ROUTER_ADDRESS,
+      abi: BRIDGE_ROUTER_ABI,
+      functionName: 'bridgeUsdcWithFee',
+      args: [amountBase, destDomain, recipientBytes32, destinationCaller, 0n, 1000],
+    })
+
+    console.log(`[CCTP Bridge] ⏳ Waiting for CCTP Burn confirmation on Arc Testnet (Tx: ${bridgeTx})...`)
+    const receipt = await this.publicClient.waitForTransactionReceipt({ hash: bridgeTx })
+    console.log(`[CCTP Bridge] ✅ CCTP Burn Confirmed on Arc Testnet in Block #${receipt.blockNumber}!`)
+
+    return {
+      ok: true,
+      isReal: true,
+      status: 'BURN_CONFIRMED',
+      intent: 'bridge',
+      protocol: 'Circle CCTP V2 (Fast Transfer)',
+      fromChain: quote.fromChain,
+      toChain: quote.toChain,
+      amountBridged: `${quote.amount} USDC`,
+      netAmountReceived: quote.netAmount,
+      platformFee: quote.platformFee,
+      sourceWallet: `EOA (${this.account.address})`,
+      destinationRecipient: this.account.address,
+      txHash: bridgeTx,
+      burnTxHash: bridgeTx,
+      approveTxHash: approveTx,
+      explorerUrl: `https://testnet.arcscan.app/tx/${bridgeTx}`,
+      blockNumber: Number(receipt.blockNumber),
+      timestamp: new Date().toISOString(),
+    }
+  }
+
 
   /**
    * 7. Quote Unified Balance Deposit
