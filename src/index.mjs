@@ -421,8 +421,37 @@ app.get('/download-architecture', (req, res) => {
   res.download(filePath, 'ARCOX_Fleet_Architecture_Diagram.png')
 })
 
-// 3. Real-time Status API
+const VPS_UPSTREAM = 'https://43.134.14.43.nip.io/fleet'
+
+// 3. Real-time Status & Execution APIs
+// If running in Vercel Serverless environment, proxy all API calls to the 24/7 VPS daemon
+// so there is always exactly ONE single persistent background instance!
+if (process.env.VERCEL === '1') {
+  app.use('/api/fleet', async (req, res) => {
+    const targetUrl = `${VPS_UPSTREAM}/api/fleet${req.url}`
+    try {
+      const fetchOpts = {
+        method: req.method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      }
+      if (req.method !== 'GET' && req.method !== 'HEAD' && req.body && Object.keys(req.body).length > 0) {
+        fetchOpts.body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body)
+      }
+      const upstream = await fetch(targetUrl, fetchOpts)
+      const data = await upstream.json().catch(() => ({ ok: false }))
+      return res.status(upstream.status).json(data)
+    } catch (err) {
+      return res.status(502).json({ ok: false, error: `VPS daemon upstream error: ${err.message}` })
+    }
+  })
+}
+
+// 3. Local Real-time Status API (VPS Execution)
 app.get('/api/fleet/status', async (req, res) => {
+
   try {
     const [walletBalances, mscaStatus, aiRouterStatus] = await Promise.all([
       orchestrator.mcpClient.getWalletBalances(),
