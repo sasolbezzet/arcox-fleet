@@ -6,6 +6,7 @@
 
 import { ArcoxApiClient } from './protocols/arcox-api-client.mjs'
 import { ArcoxMcpClient } from './protocols/mcp-client.mjs'
+import { ArcoxMcpBridge } from './protocols/arcox-mcp-bridge.mjs'
 import { FirestoreMemoryBank } from './memory/firestore-bank.mjs'
 import { ScoutAgent } from './agents/scout.mjs'
 import { StrategistAgent } from './agents/strategist.mjs'
@@ -15,12 +16,14 @@ export class FleetOrchestrator {
   constructor(config = {}) {
     this.memoryBank = new FirestoreMemoryBank(config)
     this.apiClient = new ArcoxApiClient(config.apiBaseUrl, config.connectionToken)
-    this.mcpClient = new ArcoxMcpClient({
+    const nativeMcpClient = new ArcoxMcpClient({
       baseUrl: config.apiBaseUrl,
       token: config.connectionToken,
       privateKey: config.privateKey,
       rpcUrl: config.rpcUrl,
     })
+    this.mcpClient = new ArcoxMcpBridge(nativeMcpClient)
+
 
     this.scout = new ScoutAgent({
       apiClient: this.apiClient,
