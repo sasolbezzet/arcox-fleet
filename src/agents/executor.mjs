@@ -56,19 +56,22 @@ export class ExecutorAgent {
         break
       }
 
-      case 'X402_ARKHAM_WHALE_INTEL':
-      case 'X402_DEFILLAMA_YIELD_INTEL':
-      case 'X402_COINGECKO_DEPTH_INTEL':
-      case 'X402_ARC_GAS_INTEL':
-      case 'X402_CCTP_ARBITRAGE_INTEL':
+      case 'INTEL_GET_TOKEN':
+      case 'INTEL_GET_ADDRESS':
+      case 'INTEL_GET_ENTITY':
+      case 'INTEL_GET_SWAPS':
+      case 'INTEL_GET_POLYMARKET':
+      case 'INTEL_GET_HYPERCORE':
+      case 'INTEL_GET_RISK':
       case 'X402_INTEL': {
-        const intelServiceId = decision === 'X402_INTEL' ? 'X402_ARKHAM_WHALE_INTEL' : decision
-        console.log(`[${this.agentId}] 💳 Querying & paying for Premium x402 Intelligence: [${intelServiceId}]...`)
+        const intelServiceId = decision === 'X402_INTEL' ? 'INTEL_GET_TOKEN' : decision
+        console.log(`[${this.agentId}] 💳 Querying & paying for Native ARCOX x402 Intelligence: [${intelServiceId}]...`)
         executionResult = await this.mcpClient.queryPremiumX402Intel(intelServiceId, params)
         console.log(`   • x402 Intel Unlocked! Cost: ${executionResult.costPaid} | TxHash: ${executionResult.txHash}`)
         console.log(`   • Intelligence Payload: ${JSON.stringify(executionResult.unlockedPayload)}`)
         break
       }
+
 
       case 'CLAIM_USDC_FAUCET': {
         console.log(`[${this.agentId}] 🚰 Triggering autonomous Circle / Arc Testnet USDC Faucet claim...`)

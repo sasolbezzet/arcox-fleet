@@ -50,27 +50,30 @@ You operate independently without hardcoded rules. Every 60s cycle, you inspect 
 ${JSON.stringify(ARCOX_SERVICE_CATALOG.services, null, 2)}
 
 === STRATEGIC INSTRUCTIONS ===
-1. DYNAMIC ACTION ROTATION: Select from the complete ARCOX ecosystem:
+1. DYNAMIC ACTION ROTATION: Select from the complete native ARCOX ecosystem:
    - "CLAIM_USDC_FAUCET": If current USDC balance is critically low (< 0.20 USDC), claim testnet USDC immediately.
-   - "X402_ARKHAM_WHALE_INTEL": Pay 0.005 USDC to query smart money whale accumulations & token inflows.
-   - "X402_DEFILLAMA_YIELD_INTEL": Pay 0.003 USDC to inspect DEX TVL, volume, and high-APY liquidity pools.
-   - "X402_COINGECKO_DEPTH_INTEL": Pay 0.004 USDC to evaluate orderbook bid/ask depth and volatility before trading.
-   - "X402_ARC_GAS_INTEL": Pay 0.002 USDC to analyze Arc block congestion and optimize gas timing.
-   - "X402_CCTP_ARBITRAGE_INTEL": Pay 0.005 USDC to scan cross-chain CCTP arbitrage spreads.
-   - "SWAP": Execute token swaps when you have > 0.2 USDC and positive intel signals.
+   - "INTEL_GET_TOKEN": Pay 0.005 USDC to fetch real-time Arkham token intelligence, price history & trending tokens.
+   - "INTEL_GET_ADDRESS": Pay 0.01 USDC to analyze wallet flows, counterparties, and smart money movements.
+   - "INTEL_GET_ENTITY": Pay 0.02 USDC to inspect institutional reserves (e.g. Circle, major market makers).
+   - "INTEL_GET_SWAPS": Pay 0.03 USDC to inspect historical DEX swap volumes and execution pricing.
+   - "INTEL_GET_POLYMARKET": Pay 0.03 USDC to evaluate decentralized prediction market odds.
+   - "INTEL_GET_HYPERCORE": Pay 0.02 USDC to analyze perpetual futures positioning & funding rates.
+   - "INTEL_GET_RISK": Pay 0.03 USDC to audit on-chain compliance risk scores.
+   - "SWAP": Execute token swaps on Arc DEX when you have > 0.2 USDC and positive intel signals.
    - "TOPUP_AI_ROUTER": If compute runway is low, allocate 0.01-0.05 USDC to Unified Balance.
    - "HOLD_AND_MONITOR": Strategically monitor the network without state changes.
-2. Avoid picking the exact same action 3 times in a row. Rotate actively across the x402 intelligence suite.
+2. Avoid picking the exact same action 3 times in a row. Rotate actively across the native ARCOX intelligence suite.
 3. Provide a rich, thoughtful, multi-sentence reasoning explaining your exact thought process and why this action is optimal right now.
 
 Return ONLY a valid JSON object matching this schema:
 {
-  "decision": "HOLD_AND_MONITOR" | "SWAP" | "X402_ARKHAM_WHALE_INTEL" | "X402_DEFILLAMA_YIELD_INTEL" | "X402_COINGECKO_DEPTH_INTEL" | "X402_ARC_GAS_INTEL" | "X402_CCTP_ARBITRAGE_INTEL" | "TOPUP_AI_ROUTER" | "CLAIM_USDC_FAUCET",
+  "decision": "HOLD_AND_MONITOR" | "SWAP" | "INTEL_GET_TOKEN" | "INTEL_GET_ADDRESS" | "INTEL_GET_ENTITY" | "INTEL_GET_SWAPS" | "INTEL_GET_POLYMARKET" | "INTEL_GET_HYPERCORE" | "INTEL_GET_RISK" | "TOPUP_AI_ROUTER" | "CLAIM_USDC_FAUCET",
   "reasoning": "Detailed multi-sentence explanation of your autonomous reasoning and strategic rationale for this cycle",
   "actionParams": {
     "tokenIn": "USDC",
     "tokenOut": "cirBTC",
-    "amount": "0.2",
+    "amount": "0.1",
+    "id": "BTC",
     "recipient": "0x5294E9927c3306DcBaDb03fe70b92e01cCede505"
   }
 }
@@ -104,24 +107,24 @@ Return ONLY a valid JSON object matching this schema:
       console.log('[Strategist] ⚙️ Applying Deterministic Multi-Service Rotation Engine...')
       const lastAction = this.history.length > 0 ? this.history[this.history.length - 1].decision : 'NONE'
       
-      let decision = 'X402_ARKHAM_WHALE_INTEL'
-      let reasoning = 'Scanning Arc Testnet for smart money whale flow via x402 on-chain micro-USDC payment to discover high-conviction token opportunities.'
+      let decision = 'INTEL_GET_TOKEN'
+      let reasoning = 'Calling ARCOX Intel (arcox_intel_get_token) via on-chain micro-USDC memo (0.005 USDC) to evaluate Arkham trending token data.'
 
       if (Number(usdcBal) < 0.20) {
         decision = 'CLAIM_USDC_FAUCET'
         reasoning = `On-chain wallet balance is low (${usdcBal} USDC). Autonomously requesting testnet USDC from Circle/Arc faucet to maintain operating liquidity.`
-      } else if (lastAction === 'X402_ARKHAM_WHALE_INTEL') {
+      } else if (lastAction === 'INTEL_GET_TOKEN') {
         decision = 'SWAP'
-        reasoning = 'Arkham whale data confirmed positive net accumulation on Arc DEX. Executing swap of 0.1 USDC -> cirBTC to capture spread.'
+        reasoning = 'Arkham token metrics confirmed positive volume momentum on Arc DEX. Executing swap of 0.1 USDC -> cirBTC.'
       } else if (lastAction === 'SWAP') {
-        decision = 'X402_DEFILLAMA_YIELD_INTEL'
-        reasoning = 'Swap settled. Querying DefiLlama deep liquidity via x402 memo payment (0.003 USDC) to evaluate current pool APY.'
-      } else if (lastAction === 'X402_DEFILLAMA_YIELD_INTEL') {
+        decision = 'INTEL_GET_ADDRESS'
+        reasoning = 'Swap confirmed. Calling ARCOX Intel (arcox_intel_get_address) via x402 memo (0.01 USDC) to inspect whale counterparties and wallet flows.'
+      } else if (lastAction === 'INTEL_GET_ADDRESS') {
         decision = 'HOLD_AND_MONITOR'
-        reasoning = `DEX yield depth is stable at 18.4% APY. Holding position (${usdcBal} USDC) to observe network rebalancing.`
+        reasoning = `Market wallet flows are consolidating. Holding current position (${usdcBal} USDC) to observe network stability.`
       } else {
-        decision = 'X402_ARKHAM_WHALE_INTEL'
-        reasoning = 'Initiating x402 intelligence scan to evaluate on-chain order flow and whale sentiment.'
+        decision = 'INTEL_GET_TOKEN'
+        reasoning = 'Initiating ARCOX Intel scan to inspect token order flow and trending assets.'
       }
 
       decisionData = {
@@ -131,6 +134,7 @@ Return ONLY a valid JSON object matching this schema:
           tokenIn: 'USDC',
           tokenOut: 'cirBTC',
           amount: '0.1',
+          id: 'BTC',
           recipient: '0x5294E9927c3306DcBaDb03fe70b92e01cCede505',
         },
       }

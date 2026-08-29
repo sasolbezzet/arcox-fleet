@@ -220,65 +220,84 @@ export class ArcoxMcpClient {
   }
 
   /**
-   * 4b. Execute Premium x402 Intelligence API (Auto-Paid via On-Chain Micro-USDC)
+   * 4b. Execute Native ARCOX Intel Tools (Auto-Paid via On-Chain Micro-USDC Memos)
    */
   async queryPremiumX402Intel(serviceId, params = {}) {
     const INTEL_SERVICES = {
-      X402_ARKHAM_WHALE_INTEL: {
-        name: 'Arkham Whale Radar & Smart Money Flow',
+      INTEL_GET_TOKEN: {
+        name: 'ARCOX Intel: Token Intelligence (Arkham)',
         cost: '0.005',
         data: {
-          whaleActivity: 'HIGH_ACCUMULATION',
-          topHoldersInflow24h: '+142,500 USDC',
-          smartMoneySentiment: 'BULLISH (88% Buy Volume)',
-          notableWallets: ['0x111...whale1', '0x222...whale2'],
-          arcNetworkSpread: '2.8% on USDC/cirBTC',
+          token: params.id || 'BTC',
+          priceUsd: '$64,250.00',
+          change24h: '+2.85%',
+          volume24h: '$1,420,000 USDC',
+          topHoldersCount: 250,
+          trendingScore: 'Rank #1 on Arc DEX',
         },
       },
-      X402_DEFILLAMA_YIELD_INTEL: {
-        name: 'DefiLlama DEX Liquidity & APY Optimizer',
-        cost: '0.003',
+      INTEL_GET_ADDRESS: {
+        name: 'ARCOX Intel: Address & Wallet Flows',
+        cost: '0.01',
         data: {
-          totalPoolLiquidity: '$4,890,200 USDC',
-          volume24h: '$1,230,000 USDC',
-          bestYieldPool: 'USDC/cirBTC (18.4% APY)',
-          slippageDepth05: 'Up to $25,000 USDC trade size',
+          targetAddress: params.address || '0x5294E9927c3306DcBaDb03fe70b92e01cCede505',
+          totalBalanceUsd: '$84,500.00 USDC',
+          inflow24h: '+12,400 USDC',
+          outflow24h: '-1,200 USDC',
+          whaleTag: 'ACTIVE_MARKET_MAKER',
         },
       },
-      X402_COINGECKO_DEPTH_INTEL: {
-        name: 'CoinGecko Pro Real-Time Orderbook Depth',
-        cost: '0.004',
+      INTEL_GET_ENTITY: {
+        name: 'ARCOX Intel: Institutional Entity Intelligence',
+        cost: '0.02',
         data: {
-          orderBookImbalance: '+14.2% Bid Heavy',
-          volatility1h: '0.42% (Stable)',
-          momentumScore: '78/100 (Strong Buy Pressure)',
-          suggestedExecution: 'EXECUTE_SWAP_IMMEDIATELY',
+          entityName: params.entity || 'Circle / Arc Treasury',
+          totalReserves: '$48,900,000 USDC',
+          solvencyStatus: '100% VERIFIED ON-CHAIN',
+          riskRating: 'AAA_LOW_RISK',
         },
       },
-      X402_ARC_GAS_INTEL: {
-        name: 'Arc On-Chain Gas & MEV Congestion Predictor',
-        cost: '0.002',
+      INTEL_GET_SWAPS: {
+        name: 'ARCOX Intel: Historical DEX Swaps',
+        cost: '0.03',
         data: {
-          currentBaseFee: '0.000010 USDC',
-          congestionLevel: 'LOW (12% block fullness)',
-          mevFrontrunRisk: 'ZERO_RISK',
-          executionWindow: 'OPTIMAL (Next 5 minutes)',
+          totalSwaps24h: 1420,
+          mostActivePair: 'USDC/cirBTC',
+          averageSlippage: '0.12%',
+          netBuyPressure: '+68% Buyer Volume',
         },
       },
-      X402_CCTP_ARBITRAGE_INTEL: {
-        name: 'Cross-Chain CCTP Arbitrage Scanner',
-        cost: '0.005',
+      INTEL_GET_POLYMARKET: {
+        name: 'ARCOX Intel: Polymarket Prediction Events',
+        cost: '0.03',
         data: {
-          arbitrageRoute: 'Arc_Testnet -> Base_Sepolia',
-          spreadUsdc: '+1.65%',
-          cctpLatencyEstimated: '12 seconds',
-          netProfitAfterGas: '+$16.50 per 1,000 USDC',
+          topEvent: 'Fed Interest Rate Decision & Crypto Liquidity',
+          leadingOutcome: 'Cut 25bps (86% Probability)',
+          marketVolume: '$4,120,000 USD',
+        },
+      },
+      INTEL_GET_HYPERCORE: {
+        name: 'ARCOX Intel: HyperCore / Hyperliquid Perps',
+        cost: '0.02',
+        data: {
+          openInterest: '$18,400,000 USD',
+          fundingRate1h: '+0.0012%',
+          longShortRatio: '1.42 (Bullish Tilt)',
+        },
+      },
+      INTEL_GET_RISK: {
+        name: 'ARCOX Intel: Compliance & Risk Score',
+        cost: '0.03',
+        data: {
+          riskScore: '2/100 (Safe)',
+          sanctionsExposure: 'NONE',
+          illicitFlowPercentage: '0.00%',
         },
       },
     }
 
-    const intelMeta = INTEL_SERVICES[serviceId] || INTEL_SERVICES.X402_ARKHAM_WHALE_INTEL
-    console.log(`[x402 Intel Engine] 💳 Autonomously paying ${intelMeta.cost} USDC for [${intelMeta.name}]...`)
+    const intelMeta = INTEL_SERVICES[serviceId] || INTEL_SERVICES.INTEL_GET_TOKEN
+    console.log(`[x402 Intel Engine] 💳 Autonomously executing [${intelMeta.name}] and paying ${intelMeta.cost} USDC...`)
 
     const paymentResult = await this.payX402Invoice({
       amount: intelMeta.cost,
@@ -297,6 +316,7 @@ export class ArcoxMcpClient {
       timestamp: new Date().toISOString(),
     }
   }
+
 
   /**
    * 4c. Autonomous Arc / Circle Testnet USDC Faucet Claim
