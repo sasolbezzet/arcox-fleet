@@ -223,18 +223,39 @@ app.get('/', (req, res) => {
 
   <script>
     let isDaemonActive = true;
-    const API_BASE = (window.location.hostname.includes('vercel.app')) 
-      ? 'https://43.134.14.43.nip.io/fleet' 
-      : '';
+
+    function getApiEndpoint(endpoint) {
+      const prefix = window.location.pathname.startsWith('/fleet') ? '/fleet' : '';
+      return prefix + endpoint;
+    }
+
+    async function requestFleetApi(endpoint, options = {}) {
+      const url = getApiEndpoint(endpoint);
+      try {
+        const res = await fetch(url, options);
+        if (res.ok) return await res.json();
+      } catch (err) {
+        // Fallback to VPS backend if relative URL fails
+      }
+
+      try {
+        const fallbackUrl = 'https://43.134.14.43.nip.io/fleet' + endpoint;
+        const res2 = await fetch(fallbackUrl, options);
+        return await res2.json();
+      } catch (err2) {
+        console.warn('API fetch warning:', err2.message);
+        return { ok: false, error: err2.message };
+      }
+    }
 
     async function updateDashboard() {
       try {
         const [statusRes, logsRes] = await Promise.all([
-          fetch(API_BASE + '/api/fleet/status').then(r => r.json()).catch(() => fetch('/api/fleet/status').then(r => r.json())),
-          fetch(API_BASE + '/api/fleet/logs').then(r => r.json()).catch(() => fetch('/api/fleet/logs').then(r => r.json()))
+          requestFleetApi('/api/fleet/status'),
+          requestFleetApi('/api/fleet/logs')
         ]);
 
-        if (statusRes.ok) {
+        if (statusRes && statusRes.ok) {
           isDaemonActive = statusRes.daemonRunning;
           updateDaemonUI(isDaemonActive);
 
@@ -268,7 +289,7 @@ app.get('/', (req, res) => {
           }
         }
 
-        if (logsRes.ok && logsRes.logs.length > 0) {
+        if (logsRes && logsRes.ok && logsRes.logs && logsRes.logs.length > 0) {
           document.getElementById('log-count').innerText = logsRes.logs.length + ' logs recorded';
 
           const tbody = document.getElementById('logs-table-body');
@@ -305,17 +326,17 @@ app.get('/', (req, res) => {
       if (isRunning) {
         badge.innerText = '● 24/7 RUNNING (60s)';
         badge.className = 'px-2.5 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 animate-pulse';
-        btn.className = 'flex-1 md:flex-none px-3.5 py-2.5 text-xs md:text-sm font-semibold rounded-xl transition shadow-lg flex items-center justify-center gap-1.5 bg-rose-600 hover:bg-rose-500 text-white';
+        btn.className = 'flex-1 md:flex-none px-3 py-2.5 text-xs md:text-sm font-semibold rounded-xl transition shadow-lg flex items-center justify-center gap-1 bg-rose-600 hover:bg-rose-500 text-white';
         icon.innerText = '⏸';
-        text.innerText = 'Stop Daemon';
+        text.innerText = 'Stop';
         intervalStat.innerText = 'Every 60s';
         statusText.innerText = 'Autonomous Loop Active';
       } else {
         badge.innerText = '⏸ PAUSED';
         badge.className = 'px-2.5 py-0.5 text-xs font-semibold rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30';
-        btn.className = 'flex-1 md:flex-none px-3.5 py-2.5 text-xs md:text-sm font-semibold rounded-xl transition shadow-lg flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white';
+        btn.className = 'flex-1 md:flex-none px-3 py-2.5 text-xs md:text-sm font-semibold rounded-xl transition shadow-lg flex items-center justify-center gap-1 bg-emerald-600 hover:bg-emerald-500 text-white';
         icon.innerText = '▶';
-        text.innerText = 'Start Daemon';
+        text.innerText = 'Start';
         intervalStat.innerText = 'PAUSED';
         statusText.innerText = 'Waiting for manual trigger';
       }
@@ -323,14 +344,18 @@ app.get('/', (req, res) => {
 
     async function toggleDaemon() {
       const action = isDaemonActive ? 'stop' : 'start';
+      const btn = document.getElementById('btn-toggle-daemon');
+      btn.disabled = true;
       try {
-        const res = await fetch(API_BASE + '/api/fleet/daemon/' + action, { method: 'POST' }).then(r => r.json());
-        if (res.ok) {
+        const res = await requestFleetApi('/api/fleet/daemon/' + action, { method: 'POST' });
+        if (res && res.ok) {
           isDaemonActive = res.running;
           updateDaemonUI(isDaemonActive);
         }
       } catch (e) {
-        alert('Toggle failed: ' + e.message);
+        alert('Toggle notice: ' + e.message);
+      } finally {
+        btn.disabled = false;
       }
     }
 
@@ -339,12 +364,12 @@ app.get('/', (req, res) => {
       btn.innerText = '⏳ Refueling...';
       btn.disabled = true;
       try {
-        const res = await fetch(API_BASE + '/api/fleet/claim-faucet', { method: 'POST' }).then(r => r.json());
-        if (res.ok) {
+        const res = await requestFleetApi('/api/fleet/claim-faucet', { method: 'POST' });
+        if (res && res.ok && res.result) {
           alert('🚰 Faucet Refilled! ' + res.result.claimedAmount + ' added to wallet on Arc Testnet.');
           await updateDashboard();
         } else {
-          alert('Faucet notice: ' + (res.error || 'Request processed'));
+          alert('Faucet notice: ' + (res?.error || 'Request processed'));
         }
       } catch (e) {
         alert('Faucet error: ' + e.message);
@@ -359,10 +384,12 @@ app.get('/', (req, res) => {
       btn.innerText = '⏳ Scanning...';
       btn.disabled = true;
       try {
-        await fetch(API_BASE + '/api/fleet/run-cycle', { method: 'POST' });
-        await updateDashboard();
+        const res = await requestFleetApi('/api/fleet/run-cycle', { method: 'POST' });
+        if (res && res.ok) {
+          await updateDashboard();
+        }
       } catch (e) {
-        alert('Failed: ' + e.message);
+        alert('Scan notice: ' + e.message);
       } finally {
         btn.innerHTML = '<span>⚡</span> <span>Scan Now</span>';
         btn.disabled = false;
@@ -373,10 +400,10 @@ app.get('/', (req, res) => {
     updateDashboard();
   </script>
 
-
 </body>
 </html>`)
 })
+
 
 // 2. Direct Downloads Routes
 app.get('/download-demo', (req, res) => {
