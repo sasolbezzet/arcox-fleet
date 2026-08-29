@@ -559,12 +559,75 @@ export class ArcoxMcpClient {
     const receipt = await this.publicClient.waitForTransactionReceipt({ hash: bridgeTx })
     console.log(`[CCTP Bridge] ✅ CCTP Burn Confirmed on Arc Testnet in Block #${receipt.blockNumber}!`)
 
+    // 3. Automated Destination Mint on Base Sepolia via Circle Iris Attestation
+    let mintTxHash = null
+    let mintExplorerUrl = null
+    let mintStatus = 'MINT_QUEUED_OR_RELAYED'
+
+    try {
+      console.log(`[CCTP Bridge] 3️⃣ Polling Circle Iris Sandbox for Attestation Signature...`)
+      const irisUrl = `https://iris-api-sandbox.circle.com/v2/messages/26?transactionHash=${bridgeTx}`
+      
+      for (let attempt = 0; attempt < 5; attempt++) {
+        await new Promise(r => setTimeout(r, 2000))
+        const irisRes = await fetch(irisUrl).then(r => r.json()).catch(() => null)
+        const msg = irisRes?.messages?.[0]
+        if (msg && msg.status === 'complete' && msg.attestation && msg.message) {
+          console.log(`[CCTP Bridge] ✍️ Iris Attestation Signature Verified!`)
+          console.log(`[CCTP Bridge] 4️⃣ Calling receiveMessage on Base Sepolia MessageTransmitter (0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275)...`)
+          
+          const baseSepoliaChain = {
+            id: 84532,
+            name: 'Base Sepolia',
+            nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+            rpcUrls: { default: { http: [process.env.BASE_SEPOLIA_RPC_URL || 'https://sepolia.base.org'] } },
+          }
+          const baseWalletClient = createWalletClient({
+            account: this.account,
+            chain: baseSepoliaChain,
+            transport: http(process.env.BASE_SEPOLIA_RPC_URL || 'https://sepolia.base.org'),
+          })
+          const basePublicClient = createPublicClient({
+            chain: baseSepoliaChain,
+            transport: http(process.env.BASE_SEPOLIA_RPC_URL || 'https://sepolia.base.org'),
+          })
+
+          const RECEIVE_ABI = [
+            {
+              type: 'function',
+              name: 'receiveMessage',
+              stateMutability: 'nonpayable',
+              inputs: [{ name: 'message', type: 'bytes' }, { name: 'attestation', type: 'bytes' }],
+              outputs: [{ name: 'success', type: 'bool' }],
+            },
+          ]
+
+          mintTxHash = await baseWalletClient.writeContract({
+            address: '0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275',
+            abi: RECEIVE_ABI,
+            functionName: 'receiveMessage',
+            args: [msg.message, msg.attestation],
+          })
+
+          console.log(`[CCTP Bridge] ⏳ Waiting for Base Sepolia Mint confirmation (Tx: ${mintTxHash})...`)
+          await basePublicClient.waitForTransactionReceipt({ hash: mintTxHash })
+          mintExplorerUrl = `https://sepolia.basescan.org/tx/${mintTxHash}`
+          mintStatus = 'MINT_SETTLED_ON_BASE'
+          console.log(`[CCTP Bridge] 🎉 Full-Cycle CCTP Bridge Mint Succeeded on Base Sepolia! Tx: ${mintTxHash}`)
+          break
+        }
+      }
+    } catch (mintErr) {
+      console.warn('[CCTP Bridge] Auto-mint notice:', mintErr.message)
+      mintStatus = 'RELAY_IN_FLIGHT'
+    }
+
     return {
       ok: true,
       isReal: true,
-      status: 'BURN_CONFIRMED',
+      status: mintStatus === 'MINT_SETTLED_ON_BASE' ? 'FULL_CYCLE_MINT_COMPLETE' : 'BURN_CONFIRMED',
       intent: 'bridge',
-      protocol: 'Circle CCTP V2 (Fast Transfer)',
+      protocol: 'Circle CCTP V2 (Fast Finality 1,000 blocks)',
       fromChain: quote.fromChain,
       toChain: quote.toChain,
       amountBridged: `${quote.amount} USDC`,
@@ -572,14 +635,17 @@ export class ArcoxMcpClient {
       platformFee: quote.platformFee,
       sourceWallet: `EOA (${this.account.address})`,
       destinationRecipient: this.account.address,
-      txHash: bridgeTx,
       burnTxHash: bridgeTx,
-      approveTxHash: approveTx,
-      explorerUrl: `https://testnet.arcscan.app/tx/${bridgeTx}`,
+      burnExplorerUrl: `https://testnet.arcscan.app/tx/${bridgeTx}`,
+      mintTxHash,
+      mintExplorerUrl,
+      txHash: mintTxHash || bridgeTx,
+      explorerUrl: mintExplorerUrl || `https://testnet.arcscan.app/tx/${bridgeTx}`,
       blockNumber: Number(receipt.blockNumber),
       timestamp: new Date().toISOString(),
     }
   }
+
 
 
   /**
