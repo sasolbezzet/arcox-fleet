@@ -33,16 +33,28 @@ export class ExecutorAgent {
           const eurc = Number(arcTokens.EURC || '0')
           const cirBtc = Number(arcTokens.CIRBTC || arcTokens.cirBTC || '0')
 
-          let rebalanceAction = 'SWAP'
-          let tokenIn = 'USDC'
-          let tokenOut = 'cirBTC'
-          let amount = '0.01'
+          let tokenIn = params.tokenIn || 'EURC'
+          let tokenOut = params.tokenOut || 'USDC'
+          let amount = params.amount || '0.5'
 
-          if (eurc > 10.0 && cirBtc < 0.001) {
+          // Intelligent Rebalance Heuristics:
+          if (params.tokenIn && params.tokenOut) {
+            tokenIn = params.tokenIn
+            tokenOut = params.tokenOut
+            amount = params.amount || '0.1'
+          } else if (usdc < 0.25 && eurc >= 1.0) {
+            // Priority 1: Rebalance excess EURC into USDC for operational gas & runway
+            tokenIn = 'EURC'
+            tokenOut = 'USDC'
+            amount = '1.0'
+            console.log(`[${this.agentId}] ⚖️ Rebalancing excess EURC (${eurc} EURC) -> USDC (${usdc} USDC) to secure operating runway`)
+          } else if (eurc > 15.0 && cirBtc < 0.001) {
+            // Priority 2: Accumulate cirBTC from EURC
             tokenIn = 'EURC'
             tokenOut = 'cirBTC'
             amount = '0.05'
-          } else if (usdc > 0.3) {
+          } else if (usdc > 0.5) {
+            // Priority 3: Accumulate cirBTC from USDC
             tokenIn = 'USDC'
             tokenOut = 'cirBTC'
             amount = '0.01'
