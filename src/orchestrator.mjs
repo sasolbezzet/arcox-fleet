@@ -50,6 +50,7 @@ export class FleetOrchestrator {
     this.nextRunTimestamp = null
     this.recentLogs = []
     this.subscribers = new Set()
+    this.isCycleRunning = false
 
     this.log('INIT', 'ARCOX Fleet Orchestrator initialized. Connected to Arc Testnet (5042002).')
   }
@@ -82,6 +83,12 @@ export class FleetOrchestrator {
    * Run 1 autonomous reasoning & execution cycle
    */
   async runAutonomousCycle(triggerSource = 'SCHEDULED_DAEMON') {
+    if (this.isCycleRunning) {
+      this.log('CYCLE_GUARD', `⚠️ Cycle already in progress (Phase: ${this.currentPhase}). Skipping trigger: ${triggerSource}`)
+      return { ok: true, skipped: true, reason: 'Cycle already in progress', currentPhase: this.currentPhase, latestCycle: this.latestCycleSummary }
+    }
+
+    this.isCycleRunning = true
     this.cycleCount++
     const cycleId = `cycle_${Date.now()}`
     const startTime = Date.now()
@@ -216,6 +223,7 @@ export class FleetOrchestrator {
       this.log('ERROR', `Cycle #${this.cycleCount} error: ${err.message}`)
       throw err
     } finally {
+      this.isCycleRunning = false
       this.currentPhase = 'IDLE'
       this.activeToolName = null
       if (this.isRunning) {
