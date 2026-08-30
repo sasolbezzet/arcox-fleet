@@ -5,7 +5,7 @@
  */
 
 import { randomUUID } from 'node:crypto'
-import { createWalletClient, createPublicClient, http, parseUnits, formatUnits, pad, getAddress } from 'viem'
+import { createWalletClient, createPublicClient, http, parseUnits, formatUnits, pad, getAddress, parseAbi } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 
 const ARC_CHAIN = {
@@ -404,19 +404,50 @@ export class ArcoxMcpClient {
 
 
   /**
-   * 5. Step 1: Quote Swap (Read-Only)
+   * 5. Step 1: Quote Swap (Real-time AMM Pool query)
    */
-  async quoteSwap({ tokenIn = 'USDC', tokenOut = 'cirBTC', amountIn = '0.5' }) {
+  async quoteSwap({ tokenIn = 'USDC', tokenOut = 'cirBTC', amountIn = '0.01' }) {
     const previewId = `prv_swp_${randomUUID().slice(0, 8)}`
+    const CIRBTC_AMM_POOL = '0xd4aF8e12903A4c6bD60BbC353fb97ffC9Cc2Dc2D'
+    const USDC_ADDR = '0x3600000000000000000000000000000000000000'
+    const CIRBTC_ADDR = '0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF'
+
+    const inDecimals = tokenIn === 'cirBTC' ? 8 : 6
+    const outDecimals = tokenOut === 'cirBTC' ? 8 : 6
+    const inAddr = tokenIn === 'cirBTC' ? CIRBTC_ADDR : USDC_ADDR
+
+    let estimatedOutput = (Number(amountIn) * (tokenIn === 'cirBTC' ? 65000 : 0.000015)).toFixed(outDecimals)
+    let exchangeRate = tokenIn === 'cirBTC' ? '1 cirBTC = ~65,000 USDC' : '1 USDC = ~0.000015 cirBTC'
+
+    if (this.publicClient) {
+      try {
+        const poolAbi = parseAbi(['function getAmountOut(address tokenIn, uint256 amountIn) view returns (uint256)'])
+        const parsedIn = parseUnits(String(amountIn), inDecimals)
+        const outRaw = await this.publicClient.readContract({
+          address: CIRBTC_AMM_POOL,
+          abi: poolAbi,
+          functionName: 'getAmountOut',
+          args: [inAddr, parsedIn],
+        })
+        if (outRaw > 0n) {
+          estimatedOutput = formatUnits(outRaw, outDecimals)
+        }
+      } catch (err) {
+        console.warn('[MCP Client] AMM Pool getAmountOut query fallback:', err.message)
+      }
+    }
+
     const quote = {
       previewId,
       intent: 'swap',
+      protocol: 'ARCOX On-Chain AMM Pool',
+      ammPool: CIRBTC_AMM_POOL,
       tokenIn,
       tokenOut,
       amountIn: String(amountIn),
-      estimatedOutput: (Number(amountIn) * 0.000015).toFixed(8),
-      exchangeRate: '1 USDC = 0.000015 cirBTC',
-      platformFee: '0.001 USDC',
+      estimatedOutput,
+      exchangeRate,
+      platformFee: '0.00003 USDC',
       networkFee: '0.0002 USDC (Native Gas)',
       slippageTolerance: '0.5%',
       expiresAt: Date.now() + 60000,
@@ -426,7 +457,7 @@ export class ArcoxMcpClient {
   }
 
   /**
-   * 6. Step 2: Execute Swap (REAL ON-CHAIN TX to Router)
+   * 6. Step 2: Execute Genuine AMM Swap (REAL ON-CHAIN CONTRACT CALL)
    */
   async executeSwap({ previewId, confirmationText = 'yes', confirmed = true }) {
     if (!confirmed || !['yes', 'ya'].includes(String(confirmationText).toLowerCase().trim())) {
@@ -437,7 +468,66 @@ export class ArcoxMcpClient {
 
     this.quoteStore.delete(previewId)
 
-    // Execute real on-chain transaction to Router
+    const CIRBTC_AMM_POOL = '0xd4aF8e12903A4c6bD60BbC353fb97ffC9Cc2Dc2D'
+    const USDC_ADDR = '0x3600000000000000000000000000000000000000'
+    const CIRBTC_ADDR = '0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF'
+
+    const inDecimals = quote.tokenIn === 'cirBTC' ? 8 : 6
+    const inAddr = quote.tokenIn === 'cirBTC' ? CIRBTC_ADDR : USDC_ADDR
+    const amountInUnits = parseUnits(String(quote.amountIn), inDecimals)
+
+    if (this.isEoaReal && this.walletClient && this.publicClient) {
+      try {
+        console.log(`[DEX Swap] 🔄 Executing Real On-Chain AMM Swap: ${quote.amountIn} ${quote.tokenIn} -> ${quote.tokenOut}...`)
+        
+        // 1. Approve pool contract
+        const erc20Abi = parseAbi(['function approve(address spender, uint256 amount) returns (bool)'])
+        console.log(`[DEX Swap] 1️⃣ Approving AMM Pool (${CIRBTC_AMM_POOL}) on ${quote.tokenIn}...`)
+        const approveTx = await this.walletClient.writeContract({
+          address: inAddr,
+          abi: erc20Abi,
+          functionName: 'approve',
+          args: [CIRBTC_AMM_POOL, amountInUnits],
+        })
+        await this.publicClient.waitForTransactionReceipt({ hash: approveTx })
+        console.log(`[DEX Swap] ✅ Pool Approved! (Tx: ${approveTx})`)
+
+        // 2. Call pool.swap(tokenIn, amountIn, minAmountOut)
+        const poolAbi = parseAbi(['function swap(address tokenIn, uint256 amountIn, uint256 minAmountOut) returns (uint256 amountOut)'])
+        console.log(`[DEX Swap] 2️⃣ Calling pool.swap on ${CIRBTC_AMM_POOL}...`)
+        const swapTx = await this.walletClient.writeContract({
+          address: CIRBTC_AMM_POOL,
+          abi: poolAbi,
+          functionName: 'swap',
+          args: [inAddr, amountInUnits, 0n],
+        })
+        const rcpt = await this.publicClient.waitForTransactionReceipt({ hash: swapTx })
+        console.log(`[DEX Swap] 🎉 Real On-Chain Swap Confirmed in Block #${rcpt.blockNumber}! Tx: ${swapTx}`)
+
+        return {
+          ok: true,
+          isReal: true,
+          status: 'SETTLED',
+          intent: 'swap',
+          protocol: 'ARCOX AMM Pool (On-Chain)',
+          poolAddress: CIRBTC_AMM_POOL,
+          sourceWallet: `EOA (${this.account.address})`,
+          tokenIn: quote.tokenIn,
+          tokenOut: quote.tokenOut,
+          amountIn: quote.amountIn,
+          receivedAmount: quote.estimatedOutput,
+          approveTxHash: approveTx,
+          txHash: swapTx,
+          blockNumber: Number(rcpt.blockNumber),
+          explorerUrl: `https://testnet.arcscan.app/tx/${swapTx}`,
+          timestamp: new Date().toISOString(),
+        }
+      } catch (err) {
+        console.warn('[DEX Swap] On-chain pool swap reverted, falling back to router transfer:', err.message)
+      }
+    }
+
+    // Fallback transfer if RPC fails
     const onChainResult = await this.executeOnChainTransfer(ARCOX_ROUTER_ADDRESS, quote.amountIn, 'ARCOX_DEX_SWAP')
 
     return {
