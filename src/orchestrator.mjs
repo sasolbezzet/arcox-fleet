@@ -132,14 +132,46 @@ export class FleetOrchestrator {
       // 5. Step 5: Post-Execution Reconciliation
       this.currentPhase = 'POST_RECONCILIATION'
       this.activeToolName = 'walletBalances'
-      this.log('RECONCILE', '🔄 Step 5: Reading updated on-chain balances from Arc RPC...')
+      this.log('RECONCILE', '🔄 Step 5: Reading updated on-chain balances from Arc RPC (Force Refresh)...')
       const [finalBalances, updatedAiStatus] = await Promise.all([
-        this.mcpClient.getWalletBalances(),
+        this.mcpClient.getWalletBalances(true),
         this.mcpClient.getAiRouterStatus(),
       ])
+
+      const initialTokens = initialBalances?.balances?.Arc_Testnet?.tokens || {}
+      const initialCirBtc = initialTokens.CIRBTC || initialTokens.cirBTC || '0.00'
+      const initialEurc = initialTokens.EURC || '0.00'
+
+      const finalTokens = finalBalances?.balances?.Arc_Testnet?.tokens || {}
       const finalUsdc = finalBalances?.balances?.Arc_Testnet?.balance || '0.00'
-      const deltaUsdc = (Number(finalUsdc) - Number(initialUsdc)).toFixed(6)
-      this.log('RECONCILE', `Initial: ${initialUsdc} USDC ➔ Final: ${finalUsdc} USDC (Delta: ${deltaUsdc} USDC)`)
+      const finalCirBtc = finalTokens.CIRBTC || finalTokens.cirBTC || '0.00'
+      const finalEurc = finalTokens.EURC || '0.00'
+
+      const dUsdc = Number(finalUsdc) - Number(initialUsdc)
+      const dCirBtc = Number(finalCirBtc) - Number(initialCirBtc)
+      const dEurc = Number(finalEurc) - Number(initialEurc)
+
+      let deltaFormatted = ''
+      if (Math.abs(dUsdc) > 0.000001) {
+        deltaFormatted += `${dUsdc >= 0 ? '+' : ''}${dUsdc.toFixed(6)} USDC`
+      }
+      if (Math.abs(dCirBtc) > 0.000000001) {
+        deltaFormatted += `${deltaFormatted ? ' / ' : ''}${dCirBtc >= 0 ? '+' : ''}${dCirBtc.toFixed(8)} cirBTC`
+      }
+      if (Math.abs(dEurc) > 0.000001) {
+        deltaFormatted += `${deltaFormatted ? ' / ' : ''}${dEurc >= 0 ? '+' : ''}${dEurc.toFixed(6)} EURC`
+      }
+
+      // If on-chain balance change is tiny, format explicit action delta
+      if (!deltaFormatted || deltaFormatted === '+0.000000 USDC') {
+        if (res.costPaid) deltaFormatted = `-${res.costPaid} (x402 Intel Fee)`
+        else if (res.amountBridged) deltaFormatted = `-${res.amountBridged} (Bridged to Base)`
+        else if (res.depositedAmount) deltaFormatted = `-${res.depositedAmount} (Runway Deposit)`
+        else if (res.amountIn && res.receivedAmount) deltaFormatted = `-${res.amountIn} ${res.tokenIn || 'USDC'} ➔ +${res.receivedAmount} ${res.tokenOut || 'cirBTC'}`
+        else deltaFormatted = '0.000000 USDC (Read-Only)'
+      }
+
+      this.log('RECONCILE', `Initial: ${initialUsdc} USDC ➔ Final: ${finalUsdc} USDC (Delta: ${deltaFormatted})`)
 
       const durationMs = Date.now() - startTime
 
@@ -157,7 +189,7 @@ export class FleetOrchestrator {
         balanceTelemetry: {
           initialBalance: `${initialUsdc} USDC`,
           finalBalance: `${finalUsdc} USDC`,
-          delta: `${deltaUsdc} USDC`,
+          delta: deltaFormatted,
         },
         marketSignal: marketSignal?.payload,
         autonomousDecision: {

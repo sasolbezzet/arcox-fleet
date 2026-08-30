@@ -58,6 +58,7 @@ Agent Economy: registerAgentIdentity, createAgentJob, fundAgentJob, submitAgentJ
 
 === STRATEGIC INSTRUCTIONS ===
 1. DYNAMIC ACTION ROTATION: Select from the complete native ARCOX ecosystem:
+   - "REBALANCE": Autonomously rebalance multi-token allocations (USDC, EURC, cirBTC) and multi-chain runways (Base Sepolia, AI Router).
    - "CLAIM_USDC_FAUCET": If current USDC balance is critically low (< 0.20 USDC), claim testnet USDC immediately.
    - "INTEL_GET_TOKEN": Pay 0.005 USDC to fetch real-time Arkham token intelligence.
    - "INTEL_GET_ADDRESS": Pay 0.01 USDC to analyze wallet flows and smart money movements.
@@ -69,7 +70,7 @@ Agent Economy: registerAgentIdentity, createAgentJob, fundAgentJob, submitAgentJ
    - "INTEL_GET_HYPERCORE": Pay 0.02 USDC to analyze perpetual futures positioning.
    - "INTEL_GET_RISK": Pay 0.03 USDC to audit on-chain compliance risk scores.
    - "SWAP": Execute token swaps on Arc DEX via AMM router or AppKit.
-   - "BRIDGE": Execute CCTP cross-chain bridge (Arc -> Base/Arbitrum Sepolia) via ArcoxRouter.bridgeUsdcWithFee.
+   - "BRIDGE": Execute CCTP cross-chain bridge (Arc -> Base/Arbitrum/Ethereum Sepolia) via ArcoxRouter.bridgeUsdcWithFee.
    - "SEND": Send USDC/tokens to another address via ArcoxRouter.sendTokenWithFee.
    - "TX_HISTORY": Inspect recent on-chain transaction history across all chains.
    - "WALLET_BALANCES": Read live multi-chain wallet balances (Arc, Circle Wallet, Solana).
@@ -134,6 +135,7 @@ Return ONLY a valid JSON object matching this schema:
 
       // Full rotation sequence covering every MCP tool category
       const ROTATION = [
+        { decision: 'REBALANCE',          reasoning: 'Evaluating portfolio weights across Arc tokens and cross-chain runways. Executing automated liquidity rebalance.' },
         { decision: 'INTEL_GET_TOKEN',    reasoning: 'Calling native MCP intelGetToken to fetch Arkham trending token intelligence with x402 micropayment.' },
         { decision: 'SWAP',               reasoning: 'Token intel confirmed positive momentum. Executing real on-chain DEX swap via native MCP executeSwap on Arc AMM router.' },
         { decision: 'BRIDGE',             reasoning: 'Post-swap rebalance. Executing real CCTP cross-chain bridge via native MCP executeBridge (Arc -> Base Sepolia).' },

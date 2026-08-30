@@ -24,6 +24,42 @@ export class ExecutorAgent {
     try {
       switch (decision) {
 
+        // ─── Automated Portfolio Rebalancing ───
+        case 'REBALANCE': {
+          console.log(`[${this.agentId}] ⚖️ Executing autonomous multi-token/multi-chain rebalancing...`)
+          const balData = await this.mcpClient.getWalletBalances(true)
+          const arcTokens = balData?.balances?.Arc_Testnet?.tokens || {}
+          const usdc = Number(arcTokens.USDC || '0')
+          const eurc = Number(arcTokens.EURC || '0')
+          const cirBtc = Number(arcTokens.CIRBTC || arcTokens.cirBTC || '0')
+
+          let rebalanceAction = 'SWAP'
+          let tokenIn = 'USDC'
+          let tokenOut = 'cirBTC'
+          let amount = '0.01'
+
+          if (eurc > 10.0 && cirBtc < 0.001) {
+            tokenIn = 'EURC'
+            tokenOut = 'cirBTC'
+            amount = '0.05'
+          } else if (usdc > 0.3) {
+            tokenIn = 'USDC'
+            tokenOut = 'cirBTC'
+            amount = '0.01'
+          }
+
+          console.log(`[${this.agentId}] ⚖️ Rebalance route: ${amount} ${tokenIn} -> ${tokenOut}`)
+          const r = await this.mcpClient.callTool('executeSwap', { tokenIn, tokenOut, amount, source: 'eoa' })
+          executionResult = {
+            ...r,
+            intent: 'portfolio_rebalance',
+            rebalanceType: `${tokenIn}_TO_${tokenOut}`,
+            preBalance: { usdc, eurc, cirBtc },
+          }
+          console.log(`   ✅ Rebalancing settled! Tx: ${r.tx || r.txHash}`)
+          break
+        }
+
         // ─── DEX Swap via native MCP ───
         case 'SWAP': {
           const intent = {

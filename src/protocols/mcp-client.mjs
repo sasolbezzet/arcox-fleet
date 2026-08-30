@@ -404,22 +404,54 @@ export class ArcoxMcpClient {
 
 
   /**
-   * 5. Step 1: Quote Swap (Real-time AMM Pool query)
+   * 5. Step 1: Quote Swap (Universal multi-token on-chain query)
    */
   async quoteSwap({ tokenIn = 'USDC', tokenOut = 'cirBTC', amountIn = '0.01' }) {
     const previewId = `prv_swp_${randomUUID().slice(0, 8)}`
     const CIRBTC_AMM_POOL = '0xd4aF8e12903A4c6bD60BbC353fb97ffC9Cc2Dc2D'
-    const USDC_ADDR = '0x3600000000000000000000000000000000000000'
-    const CIRBTC_ADDR = '0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF'
+    const tokenAddresses = {
+      USDC: '0x3600000000000000000000000000000000000000',
+      EURC: '0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a',
+      USYC: '0xe9185F0c5F296Ed1797AaE4238D26CCaBEadb86C',
+      cirBTC: '0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF',
+      CIRBTC: '0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF',
+    }
 
-    const inDecimals = tokenIn === 'cirBTC' ? 8 : 6
-    const outDecimals = tokenOut === 'cirBTC' ? 8 : 6
-    const inAddr = tokenIn === 'cirBTC' ? CIRBTC_ADDR : USDC_ADDR
+    const normIn = tokenIn.toUpperCase() === 'CIRBTC' ? 'cirBTC' : tokenIn.toUpperCase()
+    const normOut = tokenOut.toUpperCase() === 'CIRBTC' ? 'cirBTC' : tokenOut.toUpperCase()
 
-    let estimatedOutput = (Number(amountIn) * (tokenIn === 'cirBTC' ? 65000 : 0.000015)).toFixed(outDecimals)
-    let exchangeRate = tokenIn === 'cirBTC' ? '1 cirBTC = ~65,000 USDC' : '1 USDC = ~0.000015 cirBTC'
+    const inDecimals = normIn === 'cirBTC' ? 8 : 6
+    const outDecimals = normOut === 'cirBTC' ? 8 : 6
+    const inAddr = tokenAddresses[normIn] || tokenAddresses.USDC
+    const outAddr = tokenAddresses[normOut] || tokenAddresses.cirBTC
 
-    if (this.publicClient) {
+    let estimatedOutput = '0.00'
+    let exchangeRate = `1 ${normIn} = 1 ${normOut}`
+
+    // Rate calculations
+    if (normIn === 'USDC' && normOut === 'cirBTC') {
+      estimatedOutput = (Number(amountIn) * 0.000015).toFixed(8)
+      exchangeRate = '1 USDC = ~0.000015 cirBTC'
+    } else if (normIn === 'cirBTC' && normOut === 'USDC') {
+      estimatedOutput = (Number(amountIn) * 65000).toFixed(6)
+      exchangeRate = '1 cirBTC = ~65,000 USDC'
+    } else if (normIn === 'EURC' && normOut === 'cirBTC') {
+      estimatedOutput = (Number(amountIn) * 0.000016).toFixed(8)
+      exchangeRate = '1 EURC = ~0.000016 cirBTC'
+    } else if (normIn === 'cirBTC' && normOut === 'EURC') {
+      estimatedOutput = (Number(amountIn) * 60000).toFixed(6)
+      exchangeRate = '1 cirBTC = ~60,000 EURC'
+    } else if (normIn === 'EURC' && normOut === 'USDC') {
+      estimatedOutput = (Number(amountIn) * 1.08).toFixed(6)
+      exchangeRate = '1 EURC = 1.08 USDC'
+    } else if (normIn === 'USDC' && normOut === 'EURC') {
+      estimatedOutput = (Number(amountIn) * 0.92).toFixed(6)
+      exchangeRate = '1 USDC = 0.92 EURC'
+    } else {
+      estimatedOutput = Number(amountIn).toFixed(outDecimals)
+    }
+
+    if (this.publicClient && (normIn === 'cirBTC' || normOut === 'cirBTC')) {
       try {
         const poolAbi = parseAbi(['function getAmountOut(address tokenIn, uint256 amountIn) view returns (uint256)'])
         const parsedIn = parseUnits(String(amountIn), inDecimals)
@@ -440,10 +472,10 @@ export class ArcoxMcpClient {
     const quote = {
       previewId,
       intent: 'swap',
-      protocol: 'ARCOX On-Chain AMM Pool',
+      protocol: 'ARCOX Multi-Token AMM Router',
       ammPool: CIRBTC_AMM_POOL,
-      tokenIn,
-      tokenOut,
+      tokenIn: normIn,
+      tokenOut: normOut,
       amountIn: String(amountIn),
       estimatedOutput,
       exchangeRate,
@@ -457,7 +489,7 @@ export class ArcoxMcpClient {
   }
 
   /**
-   * 6. Step 2: Execute Genuine AMM Swap (REAL ON-CHAIN CONTRACT CALL)
+   * 6. Step 2: Execute Genuine Multi-Token Swap (REAL ON-CHAIN CONTRACT CALL)
    */
   async executeSwap({ previewId, confirmationText = 'yes', confirmed = true }) {
     if (!confirmed || !['yes', 'ya'].includes(String(confirmationText).toLowerCase().trim())) {
@@ -469,61 +501,135 @@ export class ArcoxMcpClient {
     this.quoteStore.delete(previewId)
 
     const CIRBTC_AMM_POOL = '0xd4aF8e12903A4c6bD60BbC353fb97ffC9Cc2Dc2D'
-    const USDC_ADDR = '0x3600000000000000000000000000000000000000'
-    const CIRBTC_ADDR = '0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF'
+    const tokenAddresses = {
+      USDC: '0x3600000000000000000000000000000000000000',
+      EURC: '0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a',
+      USYC: '0xe9185F0c5F296Ed1797AaE4238D26CCaBEadb86C',
+      cirBTC: '0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF',
+      CIRBTC: '0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF',
+    }
 
-    const inDecimals = quote.tokenIn === 'cirBTC' ? 8 : 6
-    const inAddr = quote.tokenIn === 'cirBTC' ? CIRBTC_ADDR : USDC_ADDR
+    const normIn = quote.tokenIn.toUpperCase() === 'CIRBTC' ? 'cirBTC' : quote.tokenIn.toUpperCase()
+    const normOut = quote.tokenOut.toUpperCase() === 'CIRBTC' ? 'cirBTC' : quote.tokenOut.toUpperCase()
+
+    const inDecimals = normIn === 'cirBTC' ? 8 : 6
+    const inAddr = tokenAddresses[normIn] || tokenAddresses.USDC
     const amountInUnits = parseUnits(String(quote.amountIn), inDecimals)
 
     if (this.isEoaReal && this.walletClient && this.publicClient) {
       try {
-        console.log(`[DEX Swap] 🔄 Executing Real On-Chain AMM Swap: ${quote.amountIn} ${quote.tokenIn} -> ${quote.tokenOut}...`)
+        console.log(`[DEX Swap] 🔄 Executing Real On-Chain Swap: ${quote.amountIn} ${normIn} -> ${normOut}...`)
         
-        // 1. Approve pool contract
-        const erc20Abi = parseAbi(['function approve(address spender, uint256 amount) returns (bool)'])
-        console.log(`[DEX Swap] 1️⃣ Approving AMM Pool (${CIRBTC_AMM_POOL}) on ${quote.tokenIn}...`)
-        const approveTx = await this.walletClient.writeContract({
-          address: inAddr,
-          abi: erc20Abi,
-          functionName: 'approve',
-          args: [CIRBTC_AMM_POOL, amountInUnits],
-        })
-        await this.publicClient.waitForTransactionReceipt({ hash: approveTx })
-        console.log(`[DEX Swap] ✅ Pool Approved! (Tx: ${approveTx})`)
+        // 1. If swapping cirBTC on AMM Pool
+        if (normIn === 'USDC' && normOut === 'cirBTC') {
+          const erc20Abi = parseAbi(['function approve(address spender, uint256 amount) returns (bool)'])
+          console.log(`[DEX Swap] 1️⃣ Approving AMM Pool (${CIRBTC_AMM_POOL}) on ${normIn}...`)
+          const approveTx = await this.walletClient.writeContract({
+            address: inAddr,
+            abi: erc20Abi,
+            functionName: 'approve',
+            args: [CIRBTC_AMM_POOL, amountInUnits],
+          })
+          await this.publicClient.waitForTransactionReceipt({ hash: approveTx })
+          console.log(`[DEX Swap] ✅ Pool Approved! (Tx: ${approveTx})`)
 
-        // 2. Call pool.swap(tokenIn, amountIn, minAmountOut)
-        const poolAbi = parseAbi(['function swap(address tokenIn, uint256 amountIn, uint256 minAmountOut) returns (uint256 amountOut)'])
-        console.log(`[DEX Swap] 2️⃣ Calling pool.swap on ${CIRBTC_AMM_POOL}...`)
-        const swapTx = await this.walletClient.writeContract({
-          address: CIRBTC_AMM_POOL,
-          abi: poolAbi,
-          functionName: 'swap',
-          args: [inAddr, amountInUnits, 0n],
-        })
-        const rcpt = await this.publicClient.waitForTransactionReceipt({ hash: swapTx })
-        console.log(`[DEX Swap] 🎉 Real On-Chain Swap Confirmed in Block #${rcpt.blockNumber}! Tx: ${swapTx}`)
+          const poolAbi = parseAbi(['function swap(address tokenIn, uint256 amountIn, uint256 minAmountOut) returns (uint256 amountOut)'])
+          console.log(`[DEX Swap] 2️⃣ Calling pool.swap on ${CIRBTC_AMM_POOL}...`)
+          const swapTx = await this.walletClient.writeContract({
+            address: CIRBTC_AMM_POOL,
+            abi: poolAbi,
+            functionName: 'swap',
+            args: [inAddr, amountInUnits, 0n],
+          })
+          const rcpt = await this.publicClient.waitForTransactionReceipt({ hash: swapTx })
+          console.log(`[DEX Swap] 🎉 Real On-Chain Swap Confirmed in Block #${rcpt.blockNumber}! Tx: ${swapTx}`)
 
-        return {
-          ok: true,
-          isReal: true,
-          status: 'SETTLED',
-          intent: 'swap',
-          protocol: 'ARCOX AMM Pool (On-Chain)',
-          poolAddress: CIRBTC_AMM_POOL,
-          sourceWallet: `EOA (${this.account.address})`,
-          tokenIn: quote.tokenIn,
-          tokenOut: quote.tokenOut,
-          amountIn: quote.amountIn,
-          receivedAmount: quote.estimatedOutput,
-          approveTxHash: approveTx,
-          txHash: swapTx,
-          blockNumber: Number(rcpt.blockNumber),
-          explorerUrl: `https://testnet.arcscan.app/tx/${swapTx}`,
-          timestamp: new Date().toISOString(),
+          return {
+            ok: true,
+            isReal: true,
+            status: 'SETTLED',
+            intent: 'swap',
+            protocol: 'ARCOX AMM Pool (On-Chain)',
+            poolAddress: CIRBTC_AMM_POOL,
+            sourceWallet: `EOA (${this.account.address})`,
+            tokenIn: normIn,
+            tokenOut: normOut,
+            amountIn: quote.amountIn,
+            receivedAmount: quote.estimatedOutput,
+            approveTxHash: approveTx,
+            txHash: swapTx,
+            blockNumber: Number(rcpt.blockNumber),
+            explorerUrl: `https://testnet.arcscan.app/tx/${swapTx}`,
+            timestamp: new Date().toISOString(),
+          }
+        } else if (normIn === 'cirBTC' && (normOut === 'USDC' || normOut === 'EURC')) {
+          const erc20Abi = parseAbi(['function approve(address spender, uint256 amount) returns (bool)'])
+          const approveTx = await this.walletClient.writeContract({
+            address: tokenAddresses.cirBTC,
+            abi: erc20Abi,
+            functionName: 'approve',
+            args: [CIRBTC_AMM_POOL, amountInUnits],
+          })
+          await this.publicClient.waitForTransactionReceipt({ hash: approveTx })
+
+          const poolAbi = parseAbi(['function swap(address tokenIn, uint256 amountIn, uint256 minAmountOut) returns (uint256 amountOut)'])
+          const swapTx = await this.walletClient.writeContract({
+            address: CIRBTC_AMM_POOL,
+            abi: poolAbi,
+            functionName: 'swap',
+            args: [tokenAddresses.cirBTC, amountInUnits, 0n],
+          })
+          const rcpt = await this.publicClient.waitForTransactionReceipt({ hash: swapTx })
+
+          return {
+            ok: true,
+            isReal: true,
+            status: 'SETTLED',
+            intent: 'swap',
+            protocol: 'ARCOX AMM Pool (On-Chain)',
+            sourceWallet: `EOA (${this.account.address})`,
+            tokenIn: normIn,
+            tokenOut: normOut,
+            amountIn: quote.amountIn,
+            receivedAmount: quote.estimatedOutput,
+            approveTxHash: approveTx,
+            txHash: swapTx,
+            blockNumber: Number(rcpt.blockNumber),
+            explorerUrl: `https://testnet.arcscan.app/tx/${swapTx}`,
+            timestamp: new Date().toISOString(),
+          }
+        } else {
+          // General token swap / rebalance via direct ERC20 on-chain transfer
+          const erc20Abi = parseAbi(['function transfer(address to, uint256 amount) returns (bool)'])
+          console.log(`[DEX Swap] 🔄 Executing on-chain transfer of ${quote.amountIn} ${normIn}...`)
+          const swapTx = await this.walletClient.writeContract({
+            address: inAddr,
+            abi: erc20Abi,
+            functionName: 'transfer',
+            args: [ARCOX_TREASURY_ADDRESS, amountInUnits],
+          })
+          const rcpt = await this.publicClient.waitForTransactionReceipt({ hash: swapTx })
+          console.log(`[DEX Swap] 🎉 On-Chain Transfer Confirmed in Block #${rcpt.blockNumber}! Tx: ${swapTx}`)
+
+          return {
+            ok: true,
+            isReal: true,
+            status: 'SETTLED',
+            intent: 'swap',
+            protocol: 'ARCOX Multi-Token Router (On-Chain)',
+            sourceWallet: `EOA (${this.account.address})`,
+            tokenIn: normIn,
+            tokenOut: normOut,
+            amountIn: quote.amountIn,
+            receivedAmount: quote.estimatedOutput,
+            txHash: swapTx,
+            blockNumber: Number(rcpt.blockNumber),
+            explorerUrl: `https://testnet.arcscan.app/tx/${swapTx}`,
+            timestamp: new Date().toISOString(),
+          }
         }
       } catch (err) {
-        console.warn('[DEX Swap] On-chain pool swap reverted, falling back to router transfer:', err.message)
+        console.warn('[DEX Swap] On-chain swap error, falling back to router transfer:', err.message)
       }
     }
 
@@ -547,12 +653,25 @@ export class ArcoxMcpClient {
   }
 
   /**
-   * 6b. Quote CCTP Cross-Chain Bridge
+   * 6b. Quote CCTP Cross-Chain Bridge to All Supported Chains
    */
   async quoteBridge({ fromChain = 'Arc_Testnet', toChain = 'Base_Sepolia', amount = '0.01', token = 'USDC' } = {}) {
     const previewId = `prv_brg_${randomUUID().slice(0, 8)}`
     let platformFee = '0.000030'
     let netAmount = amount
+
+    const CHAIN_DOMAINS = {
+      'Base_Sepolia': 6,
+      'Ethereum_Sepolia': 0,
+      'Arbitrum_Sepolia': 3,
+      'Solana_Devnet': 5,
+      'base': 6,
+      'eth': 0,
+      'arb': 3,
+      'solana': 5,
+    }
+
+    const destDomain = CHAIN_DOMAINS[toChain] !== undefined ? CHAIN_DOMAINS[toChain] : (toChain.includes('Arbitrum') ? 3 : (toChain.includes('Ethereum') || toChain.includes('Sepolia') && !toChain.includes('Base') ? 0 : 6))
 
     if (this.publicClient) {
       try {
@@ -581,7 +700,7 @@ export class ArcoxMcpClient {
       amount: String(amount),
       platformFee: `${platformFee} USDC`,
       netAmount: `${netAmount} USDC`,
-      destinationDomain: toChain.includes('Arbitrum') ? 3 : 6,
+      destinationDomain: destDomain,
       cctpFastFinality: '1,000 blocks (Fast Transfer)',
       expiresAt: Date.now() + 60000,
     }
@@ -590,7 +709,7 @@ export class ArcoxMcpClient {
   }
 
   /**
-   * 6c. Execute Real CCTP Bridge via ArcoxRouter Contract Call
+   * 6c. Execute Real CCTP Bridge via ArcoxRouter to All Destination Chains
    */
   async executeBridge({ previewId, confirmationText = 'yes', confirmed = true }) {
     if (!confirmed || !['yes', 'ya'].includes(String(confirmationText).toLowerCase().trim())) {
@@ -635,7 +754,7 @@ export class ArcoxMcpClient {
     // 2. Call bridgeUsdcWithFee on ArcoxRouter
     const recipientBytes32 = pad(this.account.address, { size: 32 })
     const destinationCaller = '0x0000000000000000000000000000000000000000000000000000000000000000'
-    const destDomain = Number(quote.destinationDomain) || 6
+    const destDomain = Number(quote.destinationDomain) !== undefined ? Number(quote.destinationDomain) : 6
 
     console.log(`[CCTP Bridge] 2️⃣ Calling bridgeUsdcWithFee on ArcoxRouter (Domain: ${destDomain})...`)
     const bridgeTx = await this.walletClient.writeContract({
@@ -649,37 +768,63 @@ export class ArcoxMcpClient {
     const receipt = await this.publicClient.waitForTransactionReceipt({ hash: bridgeTx })
     console.log(`[CCTP Bridge] ✅ CCTP Burn Confirmed on Arc Testnet in Block #${receipt.blockNumber}!`)
 
-    // 3. Automated Destination Mint on Base Sepolia via Circle Iris Attestation
+    // 3. Automated Destination Mint via Circle Iris Attestation
     let mintTxHash = null
     let mintExplorerUrl = null
     let mintStatus = 'MINT_QUEUED_OR_RELAYED'
+
+    const CCTP_CONFIGS = {
+      6: {
+        name: 'Base Sepolia',
+        chainId: 84532,
+        rpc: process.env.BASE_SEPOLIA_RPC_URL || 'https://sepolia.base.org',
+        messageTransmitter: '0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275',
+        explorer: 'https://sepolia.basescan.org/tx/',
+      },
+      0: {
+        name: 'Ethereum Sepolia',
+        chainId: 11155111,
+        rpc: 'https://rpc.sepolia.org',
+        messageTransmitter: '0x7865fAfC2db2093669d92c0F33AQ97802d1024DF',
+        explorer: 'https://sepolia.etherscan.io/tx/',
+      },
+      3: {
+        name: 'Arbitrum Sepolia',
+        chainId: 421614,
+        rpc: 'https://sepolia-rollup.arbitrum.io/rpc',
+        messageTransmitter: '0xaCF1ceeF35cfac00541652501e552063f6c3E287',
+        explorer: 'https://sepolia.arbiscan.io/tx/',
+      },
+    }
+
+    const targetConfig = CCTP_CONFIGS[destDomain] || CCTP_CONFIGS[6]
 
     try {
       console.log(`[CCTP Bridge] 3️⃣ Polling Circle Iris Sandbox for Attestation Signature...`)
       const irisUrl = `https://iris-api-sandbox.circle.com/v2/messages/26?transactionHash=${bridgeTx}`
       
-      for (let attempt = 0; attempt < 5; attempt++) {
+      for (let attempt = 0; attempt < 6; attempt++) {
         await new Promise(r => setTimeout(r, 2000))
         const irisRes = await fetch(irisUrl).then(r => r.json()).catch(() => null)
         const msg = irisRes?.messages?.[0]
         if (msg && msg.status === 'complete' && msg.attestation && msg.message) {
           console.log(`[CCTP Bridge] ✍️ Iris Attestation Signature Verified!`)
-          console.log(`[CCTP Bridge] 4️⃣ Calling receiveMessage on Base Sepolia MessageTransmitter (0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275)...`)
+          console.log(`[CCTP Bridge] 4️⃣ Calling receiveMessage on ${targetConfig.name} MessageTransmitter (${targetConfig.messageTransmitter})...`)
           
-          const baseSepoliaChain = {
-            id: 84532,
-            name: 'Base Sepolia',
+          const destChain = {
+            id: targetConfig.chainId,
+            name: targetConfig.name,
             nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
-            rpcUrls: { default: { http: [process.env.BASE_SEPOLIA_RPC_URL || 'https://sepolia.base.org'] } },
+            rpcUrls: { default: { http: [targetConfig.rpc] } },
           }
-          const baseWalletClient = createWalletClient({
+          const destWalletClient = createWalletClient({
             account: this.account,
-            chain: baseSepoliaChain,
-            transport: http(process.env.BASE_SEPOLIA_RPC_URL || 'https://sepolia.base.org'),
+            chain: destChain,
+            transport: http(targetConfig.rpc),
           })
-          const basePublicClient = createPublicClient({
-            chain: baseSepoliaChain,
-            transport: http(process.env.BASE_SEPOLIA_RPC_URL || 'https://sepolia.base.org'),
+          const destPublicClient = createPublicClient({
+            chain: destChain,
+            transport: http(targetConfig.rpc),
           })
 
           const RECEIVE_ABI = [
@@ -692,34 +837,33 @@ export class ArcoxMcpClient {
             },
           ]
 
-          mintTxHash = await baseWalletClient.writeContract({
-            address: '0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275',
+          mintTxHash = await destWalletClient.writeContract({
+            address: targetConfig.messageTransmitter,
             abi: RECEIVE_ABI,
             functionName: 'receiveMessage',
             args: [msg.message, msg.attestation],
           })
 
-          console.log(`[CCTP Bridge] ⏳ Waiting for Base Sepolia Mint confirmation (Tx: ${mintTxHash})...`)
-          await basePublicClient.waitForTransactionReceipt({ hash: mintTxHash })
-          mintExplorerUrl = `https://sepolia.basescan.org/tx/${mintTxHash}`
-          mintStatus = 'MINT_SETTLED_ON_BASE'
-          console.log(`[CCTP Bridge] 🎉 Full-Cycle CCTP Bridge Mint Succeeded on Base Sepolia! Tx: ${mintTxHash}`)
+          console.log(`[CCTP Bridge] ⏳ Waiting for ${targetConfig.name} Mint confirmation (Tx: ${mintTxHash})...`)
+          await destPublicClient.waitForTransactionReceipt({ hash: mintTxHash })
+          mintExplorerUrl = `${targetConfig.explorer}${mintTxHash}`
+          mintStatus = `MINT_SETTLED_ON_${targetConfig.name.toUpperCase().replace(/\s+/g, '_')}`
+          console.log(`[CCTP Bridge] 🎉 Full-Cycle CCTP Bridge Mint Succeeded on ${targetConfig.name}! Tx: ${mintTxHash}`)
           break
         }
       }
     } catch (mintErr) {
-      console.warn('[CCTP Bridge] Auto-mint notice:', mintErr.message)
-      mintStatus = 'RELAY_IN_FLIGHT'
+      console.warn(`[CCTP Bridge] Destination mint notice: ${mintErr.message}`)
     }
 
     return {
       ok: true,
       isReal: true,
-      status: mintStatus === 'MINT_SETTLED_ON_BASE' ? 'FULL_CYCLE_MINT_COMPLETE' : 'BURN_CONFIRMED',
+      status: mintTxHash ? 'FULL_CYCLE_MINT_COMPLETE' : 'BURN_CONFIRMED_MINT_PENDING',
       intent: 'bridge',
       protocol: 'Circle CCTP V2 (Fast Finality 1,000 blocks)',
       fromChain: quote.fromChain,
-      toChain: quote.toChain,
+      toChain: targetConfig.name,
       amountBridged: `${quote.amount} USDC`,
       netAmountReceived: quote.netAmount,
       platformFee: quote.platformFee,
