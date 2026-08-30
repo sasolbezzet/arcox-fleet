@@ -1,9 +1,10 @@
 /**
  * ARCOX MCP Bridge — Full Native Integration
  * Directly imports ALL 71 tools from /home/ubuntu/arcox-mcp runtime
- * and exposes a unified callTool(name, params) dispatcher so the fleet
- * agent can call ANY MCP tool autonomously from its reasoning.
+ * Provides fast, robust multi-chain balance querying with exact Arc Token Contract addresses.
  */
+
+import { createPublicClient, http, formatUnits, parseAbi } from 'viem'
 
 let mcpRuntime = null
 
@@ -13,6 +14,25 @@ try {
 } catch (err) {
   console.warn('[ARCOX MCP Bridge] Import failed, using fallback:', err.message)
 }
+
+// Exact token contracts from Arc Docs & Runtime
+export const ARC_TOKENS = {
+  USDC: { address: '0x3600000000000000000000000000000000000000', decimals: 6, symbol: 'USDC', isGas: true },
+  EURC: { address: '0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a', decimals: 6, symbol: 'EURC' },
+  USYC: { address: '0xe9185F0c5F296Ed1797AaE4238D26CCaBEadb86C', decimals: 6, symbol: 'USYC' },
+  CIRBTC: { address: '0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF', decimals: 8, symbol: 'cirBTC' },
+}
+
+export const BASE_SEPOLIA_USDC = {
+  address: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
+  decimals: 6,
+  symbol: 'USDC',
+}
+
+const ERC20_BAL_ABI = parseAbi(['function balanceOf(address) view returns (uint256)'])
+
+const arcClient = createPublicClient({ transport: http(process.env.ARC_RPC_URL || 'https://rpc.testnet.arc.io') })
+const baseClient = createPublicClient({ transport: http('https://sepolia.base.org') })
 
 // Owner address derived from the configured AGENT_PRIVATE_KEY at startup
 let _ownerAddress = null
@@ -29,6 +49,8 @@ export class ArcoxMcpBridge {
     this.fallbackClient = fallbackClient
     this.runtime = mcpRuntime
     this.isConnected = Boolean(mcpRuntime)
+    this._cachedBalances = null
+    this._cacheTimestamp = 0
   }
 
   get account() { return this.fallbackClient.account }
@@ -38,8 +60,6 @@ export class ArcoxMcpBridge {
   /**
    * Universal MCP tool dispatcher.
    * Any tool name from arcox-mcp can be called here.
-   * Returns { ok, source, ...result } on success,
-   * or { ok: false, error } on failure.
    */
   async callTool(toolName, params = {}) {
     const owner = ownerAddress(this.fallbackClient)
@@ -49,7 +69,6 @@ export class ArcoxMcpBridge {
     }
     try {
       console.log(`[MCP Bridge] 📡 Calling native arcox-mcp tool: ${toolName}(${JSON.stringify(params).slice(0, 120)})`)
-      // Most tools accept (params) or (params, owner)
       const result = await Promise.resolve(fn(params, owner))
       console.log(`[MCP Bridge] ✅ ${toolName} returned successfully`)
       return { ok: true, source: 'arcox-mcp-native', toolName, ...result }
@@ -59,32 +78,97 @@ export class ArcoxMcpBridge {
     }
   }
 
-  /** List all available MCP tool names */
   listTools() {
     if (!this.runtime) return []
     return Object.keys(this.runtime).filter(k => typeof this.runtime[k] === 'function')
   }
 
-  // ─── Convenience wrappers used by the orchestrator pipeline ───
-
-  async getWalletBalances() {
-    if (this.runtime?.walletBalances) {
-      try {
-        const bal = await this.runtime.walletBalances()
-        if (bal?.eoa) {
-          return {
-            ok: true, isReal: true, source: 'arcox-mcp',
-            owner: bal.owner,
-            balances: {
-              Arc_Testnet: { token: 'USDC', balance: bal.eoa?.balances?.USDC || '0', nativeGas: 'USDC', tokens: bal.eoa?.balances || {} },
-              Circle_Wallet: bal.circle?.balances || {},
-              Solana_Devnet: bal.solana || {},
-            },
-          }
-        }
-      } catch (e) { console.warn('[MCP Bridge] walletBalances error:', e.message) }
+  /**
+   * Fast, reliable on-chain balance fetcher across all networks.
+   * Direct RPC queries for Arc Testnet & Base Sepolia + Circle & Solana fallback.
+   */
+  async getWalletBalances(forceRefresh = false) {
+    const now = Date.now()
+    if (!forceRefresh && this._cachedBalances && (now - this._cacheTimestamp < 2500)) {
+      return this._cachedBalances
     }
-    return this.fallbackClient.getWalletBalances()
+
+    const owner = ownerAddress(this.fallbackClient)
+
+    try {
+      // 1. Direct on-chain queries on Arc Testnet for all tokens in parallel
+      const [nativeGasRaw, usdcErc20Raw, eurcRaw, usycRaw, cirBtcRaw, baseUsdcRaw] = await Promise.all([
+        arcClient.getBalance({ address: owner }).catch(() => 0n),
+        arcClient.readContract({ address: ARC_TOKENS.USDC.address, abi: ERC20_BAL_ABI, functionName: 'balanceOf', args: [owner] }).catch(() => 0n),
+        arcClient.readContract({ address: ARC_TOKENS.EURC.address, abi: ERC20_BAL_ABI, functionName: 'balanceOf', args: [owner] }).catch(() => 0n),
+        arcClient.readContract({ address: ARC_TOKENS.USYC.address, abi: ERC20_BAL_ABI, functionName: 'balanceOf', args: [owner] }).catch(() => 0n),
+        arcClient.readContract({ address: ARC_TOKENS.CIRBTC.address, abi: ERC20_BAL_ABI, functionName: 'balanceOf', args: [owner] }).catch(() => 0n),
+        baseClient.readContract({ address: BASE_SEPOLIA_USDC.address, abi: ERC20_BAL_ABI, functionName: 'balanceOf', args: [owner] }).catch(() => 0n),
+      ])
+
+      const usdcFormatted = formatUnits(usdcErc20Raw > 0n ? usdcErc20Raw : nativeGasRaw, 6)
+      const eurcFormatted = formatUnits(eurcRaw, ARC_TOKENS.EURC.decimals)
+      const usycFormatted = formatUnits(usycRaw, ARC_TOKENS.USYC.decimals)
+      const cirBtcFormatted = formatUnits(cirBtcRaw, ARC_TOKENS.CIRBTC.decimals)
+      const baseUsdcFormatted = formatUnits(baseUsdcRaw, BASE_SEPOLIA_USDC.decimals)
+
+      // 2. Fetch Circle & Solana from runtime in background if available
+      let circleBalances = {}
+      let solanaBalances = null
+
+      if (this.runtime?.walletBalances) {
+        try {
+          const mcpBal = await this.runtime.walletBalances().catch(() => null)
+          if (mcpBal) {
+            circleBalances = mcpBal.circle?.balances || {}
+            solanaBalances = mcpBal.solana || null
+          }
+        } catch {}
+      }
+
+      const balanceData = {
+        ok: true,
+        isReal: true,
+        source: 'onchain-rpc-direct',
+        owner,
+        balances: {
+          Arc_Testnet: {
+            token: 'USDC',
+            balance: usdcFormatted,
+            nativeGas: 'USDC',
+            gasBalance: formatUnits(nativeGasRaw, 18),
+            tokens: {
+              USDC: usdcFormatted,
+              EURC: eurcFormatted,
+              USYC: usycFormatted,
+              cirBTC: cirBtcFormatted,
+              CIRBTC: cirBtcFormatted,
+            },
+            contracts: {
+              USDC: ARC_TOKENS.USDC.address,
+              EURC: ARC_TOKENS.EURC.address,
+              USYC: ARC_TOKENS.USYC.address,
+              cirBTC: ARC_TOKENS.CIRBTC.address,
+            }
+          },
+          Base_Sepolia: {
+            token: 'USDC',
+            balance: baseUsdcFormatted,
+            tokens: { USDC: baseUsdcFormatted },
+            contract: BASE_SEPOLIA_USDC.address,
+          },
+          Circle_Wallet: circleBalances,
+          Solana_Devnet: solanaBalances,
+        },
+      }
+
+      this._cachedBalances = balanceData
+      this._cacheTimestamp = Date.now()
+      return balanceData
+    } catch (err) {
+      console.warn('[MCP Bridge] Direct balance error, falling back:', err.message)
+      return this.fallbackClient.getWalletBalances()
+    }
   }
 
   async getMscaStatus() {
@@ -99,7 +183,7 @@ export class ArcoxMcpBridge {
     return this.fallbackClient.getAiRouterStatus()
   }
 
-  // Passthrough methods for the existing internal pipeline
+  // Passthrough methods for internal pipeline
   async quoteSwap(p) { return this.fallbackClient.quoteSwap(p) }
   async executeSwap(p) { return this.fallbackClient.executeSwap(p) }
   async quoteBridge(p) { return this.fallbackClient.quoteBridge(p) }

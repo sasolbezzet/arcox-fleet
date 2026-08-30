@@ -203,51 +203,82 @@ app.get('/', (req, res) => {
       </div>
 
       <!-- Real Multi-Chain Balances Grid -->
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-        <!-- Arc Testnet EOA -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4">
+        <!-- 1. Arc Testnet EOA -->
         <div class="bg-cardbg border border-slate-800 rounded-2xl p-4 shadow-xl relative overflow-hidden">
           <div class="flex items-center justify-between">
             <span class="text-[11px] uppercase font-bold tracking-wider text-slate-400">Arc Testnet</span>
             <span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono">Chain 5042002</span>
           </div>
-          <div class="text-xl md:text-2xl font-black text-white mt-1.5 font-mono" id="stat-balance">Loading...</div>
-          <div class="mt-2 space-y-0.5 text-[11px] font-mono text-slate-400">
-            <div class="flex justify-between"><span>cirBTC:</span> <span id="bal-cirbtc" class="text-slate-200">0.00</span></div>
-            <div class="flex justify-between"><span>EURC:</span> <span id="bal-eurc" class="text-slate-200">0.00</span></div>
+          <div class="text-xl font-black text-white mt-1.5 font-mono" id="stat-balance">Loading...</div>
+          <div class="mt-2 space-y-1 text-[11px] font-mono text-slate-400">
+            <div class="flex justify-between items-center">
+              <a href="https://testnet.arcscan.app/token/0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a" target="_blank" class="text-slate-400 hover:text-teal-300">EURC ↗</a>
+              <span id="bal-eurc" class="text-slate-200 font-bold">0.00</span>
+            </div>
+            <div class="flex justify-between items-center">
+              <a href="https://testnet.arcscan.app/token/0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF" target="_blank" class="text-slate-400 hover:text-teal-300">cirBTC ↗</a>
+              <span id="bal-cirbtc" class="text-slate-200 font-bold">0.00</span>
+            </div>
+            <div class="flex justify-between items-center">
+              <a href="https://testnet.arcscan.app/token/0xe9185F0c5F296Ed1797AaE4238D26CCaBEadb86C" target="_blank" class="text-slate-400 hover:text-teal-300">USYC ↗</a>
+              <span id="bal-usyc" class="text-slate-200 font-bold">0.00</span>
+            </div>
           </div>
         </div>
 
-        <!-- AI Router Unified Balance -->
+        <!-- 2. Base Sepolia (CCTP Destination) -->
         <div class="bg-cardbg border border-slate-800 rounded-2xl p-4 shadow-xl">
           <div class="flex items-center justify-between">
-            <span class="text-[11px] uppercase font-bold tracking-wider text-slate-400">AI Compute Runway</span>
-            <span class="text-[10px] px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-mono">Unified Bal</span>
+            <span class="text-[11px] uppercase font-bold tracking-wider text-slate-400">Base Sepolia</span>
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 font-mono">CCTP Mint</span>
           </div>
-          <div class="text-xl md:text-2xl font-black text-indigo-300 mt-1.5 font-mono" id="stat-ai-balance">Loading...</div>
-          <div class="text-[11px] text-indigo-400/80 mt-2 font-mono">Auto-Pay Active per LLM call</div>
+          <div class="text-xl font-black text-blue-300 mt-1.5 font-mono" id="stat-base-usdc">Loading...</div>
+          <div class="mt-2 space-y-1 text-[11px] font-mono text-slate-400">
+            <div class="flex justify-between items-center">
+              <a href="https://sepolia.basescan.org/token/0x036CbD53842c5426634e7929541eC2318f3dCF7e" target="_blank" class="text-slate-400 hover:text-blue-300">USDC ↗</a>
+              <span class="text-slate-500 text-[10px]">CCTP V2 Minted</span>
+            </div>
+            <div class="text-[10px] text-slate-500 truncate">Domain: 6 (Base)</div>
+          </div>
         </div>
 
-        <!-- Circle Developer Wallet -->
+        <!-- 3. Circle Developer Wallet -->
         <div class="bg-cardbg border border-slate-800 rounded-2xl p-4 shadow-xl">
           <div class="flex items-center justify-between">
             <span class="text-[11px] uppercase font-bold tracking-wider text-slate-400">Circle Dev Wallet</span>
-            <span class="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 font-mono">Multi-Token</span>
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-mono">Proxy EOA</span>
           </div>
-          <div class="text-xl md:text-2xl font-black text-blue-300 mt-1.5 font-mono" id="stat-circle-usdc">-- USDC</div>
-          <div class="mt-2 space-y-0.5 text-[11px] font-mono text-slate-400">
+          <div class="text-xl font-black text-cyan-300 mt-1.5 font-mono" id="stat-circle-usdc">-- USDC</div>
+          <div class="mt-2 space-y-1 text-[11px] font-mono text-slate-400">
             <div class="flex justify-between"><span>EURC:</span> <span id="bal-circle-eurc" class="text-slate-200">--</span></div>
             <div class="flex justify-between"><span>cirBTC:</span> <span id="bal-circle-cirbtc" class="text-slate-200">--</span></div>
           </div>
         </div>
 
-        <!-- Solana Devnet -->
+        <!-- 4. Solana Devnet -->
         <div class="bg-cardbg border border-slate-800 rounded-2xl p-4 shadow-xl">
           <div class="flex items-center justify-between">
             <span class="text-[11px] uppercase font-bold tracking-wider text-slate-400">Solana Devnet</span>
             <span class="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 font-mono">SPL USDC</span>
           </div>
-          <div class="text-xl md:text-2xl font-black text-purple-300 mt-1.5 font-mono" id="stat-solana-usdc">-- USDC</div>
-          <div class="text-[10px] text-slate-500 mt-2 font-mono truncate" id="solana-address">ATA: Loading...</div>
+          <div class="text-xl font-black text-purple-300 mt-1.5 font-mono" id="stat-solana-usdc">-- USDC</div>
+          <div class="mt-2 space-y-1 text-[10px] font-mono text-slate-400">
+            <div class="truncate text-slate-500" id="solana-address">ATA: Loading...</div>
+            <div class="text-purple-400 text-[10px]">CCTP Router Program</div>
+          </div>
+        </div>
+
+        <!-- 5. AI Router Unified Balance -->
+        <div class="bg-cardbg border border-slate-800 rounded-2xl p-4 shadow-xl col-span-1 sm:col-span-2 lg:col-span-1">
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] uppercase font-bold tracking-wider text-slate-400">AI Compute Runway</span>
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-mono">Unified Bal</span>
+          </div>
+          <div class="text-xl font-black text-indigo-300 mt-1.5 font-mono" id="stat-ai-balance">Loading...</div>
+          <div class="mt-2 text-[10px] text-indigo-400/80 font-mono">
+            Auto-Pay Active per LLM Request
+          </div>
         </div>
       </div>
 
@@ -594,20 +625,29 @@ app.get('/', (req, res) => {
 
           // Update Balances
           const balObj = statusRes.balances?.balances || {};
-          const arcBal = balObj?.Arc_Testnet?.balance || '0.00';
+          const arcData = balObj?.Arc_Testnet || {};
+          const arcBal = arcData.balance || '0.00';
           document.getElementById('stat-balance').innerText = Number(arcBal).toFixed(4) + ' USDC';
           
-          const tokens = balObj?.Arc_Testnet?.tokens || {};
-          document.getElementById('bal-cirbtc').innerText = tokens.CIRBTC || tokens.cirBTC || '0.00';
+          const tokens = arcData.tokens || {};
           document.getElementById('bal-eurc').innerText = tokens.EURC || '0.00';
+          document.getElementById('bal-cirbtc').innerText = tokens.CIRBTC || tokens.cirBTC || '0.00';
+          document.getElementById('bal-usyc').innerText = tokens.USYC || '0.00';
 
+          // Base Sepolia CCTP Balance
+          const baseData = balObj?.Base_Sepolia || {};
+          document.getElementById('stat-base-usdc').innerText = (baseData.balance || '0.00') + ' USDC';
+
+          // AI Router Unified Balance
           document.getElementById('stat-ai-balance').innerText = '$' + (statusRes.aiRouterStatus?.unifiedBalance?.totalConfirmedBalance || '0.00') + ' USDC';
 
+          // Circle Dev Wallet
           const circleBal = balObj?.Circle_Wallet || {};
           document.getElementById('stat-circle-usdc').innerText = (circleBal.USDC || '0.00') + ' USDC';
           document.getElementById('bal-circle-eurc').innerText = circleBal.EURC || '0.00';
           document.getElementById('bal-circle-cirbtc').innerText = circleBal.cirBTC || '0.00';
 
+          // Solana Devnet
           const solBal = balObj?.Solana_Devnet || {};
           document.getElementById('stat-solana-usdc').innerText = (solBal.usdc?.amount || '0.00') + ' USDC';
           document.getElementById('solana-address').innerText = 'ATA: ' + (solBal.usdc?.ata ? solBal.usdc.ata.slice(0, 8) + '...' : 'N/A');
