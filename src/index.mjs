@@ -1,6 +1,7 @@
 /**
  * ARCOX Fleet HTTP Server & Real-Time Interactive Monitoring Dashboard
  * 100% Real-Time Data | Live SSE Stream | 71 MCP Tools Explorer & Interactive Runner
+ * Comprehensive Button Audit & Functional Integration
  */
 
 import 'dotenv/config'
@@ -8,7 +9,6 @@ import express from 'express'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { FleetOrchestrator } from './orchestrator.mjs'
-import { ARCOX_SERVICE_CATALOG } from './services/arcox-service-catalog.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const app = express()
@@ -25,7 +25,7 @@ app.use((req, res, next) => {
   next()
 })
 
-// Serve static files
+// Serve static files (including demo video, thumbnail, architecture diagram)
 app.use(express.static(path.join(__dirname, '../public')))
 
 const orchestrator = new FleetOrchestrator({
@@ -103,18 +103,26 @@ app.get('/', (req, res) => {
         </div>
       </div>
 
-      <!-- Header Controls -->
+      <!-- Header Controls & Media Downloads -->
       <div class="relative z-10 flex flex-wrap items-center gap-2 w-full lg:w-auto">
         <div class="bg-subcard/80 border border-slate-800 rounded-xl px-3 py-2 flex items-center gap-2 text-xs font-mono text-slate-300">
           <span class="text-slate-500">NEXT SCAN:</span>
           <span id="countdown-timer" class="font-bold text-amber-400">--s</span>
         </div>
 
-        <button id="btn-faucet" onclick="openFaucetModal()" class="px-3.5 py-2 text-xs md:text-sm font-semibold rounded-xl bg-amber-600 hover:bg-amber-500 text-white transition shadow-lg flex items-center gap-1.5 active:scale-95">
+        <button id="btn-faucet" onclick="openFaucetModal()" class="px-3 py-2 text-xs md:text-sm font-semibold rounded-xl bg-amber-600 hover:bg-amber-500 text-white transition shadow-lg flex items-center gap-1.5 active:scale-95">
           <span>🚰</span> <span>Faucet</span>
         </button>
 
-        <button id="btn-toggle-daemon" onclick="toggleDaemon()" class="px-3.5 py-2 text-xs md:text-sm font-semibold rounded-xl transition shadow-lg flex items-center gap-1.5 bg-rose-600 hover:bg-rose-500 text-white active:scale-95">
+        <a href="/download-demo" class="px-3 py-2 text-xs md:text-sm font-semibold rounded-xl bg-teal-700 hover:bg-teal-600 text-white transition shadow-lg flex items-center gap-1.5 active:scale-95" title="Download MP4 Demo Video">
+          <span>📥</span> <span>Demo Video</span>
+        </a>
+
+        <a href="/download-architecture" target="_blank" class="px-3 py-2 text-xs md:text-sm font-semibold rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition shadow-lg flex items-center gap-1.5 active:scale-95" title="View Architecture Diagram">
+          <span>📐</span> <span>Diagram</span>
+        </a>
+
+        <button id="btn-toggle-daemon" onclick="toggleDaemon()" class="px-3 py-2 text-xs md:text-sm font-semibold rounded-xl transition shadow-lg flex items-center gap-1.5 bg-rose-600 hover:bg-rose-500 text-white active:scale-95">
           <span id="toggle-icon">⏸</span> <span id="toggle-text">Pause</span>
         </button>
 
@@ -243,6 +251,41 @@ app.get('/', (req, res) => {
         </div>
       </div>
 
+      <!-- Real-Time Scout Market Intelligence Telemetry Card -->
+      <div class="bg-cardbg border border-teal-500/30 rounded-2xl p-4 md:p-5 shadow-xl relative overflow-hidden">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <div class="flex items-center gap-2">
+            <span class="text-lg">🕵️</span>
+            <h3 class="text-sm font-bold text-white uppercase tracking-wider">Live Scout Market Intelligence & x402 Telemetry</h3>
+          </div>
+          <span class="text-[11px] text-teal-400 font-mono px-2 py-0.5 rounded bg-teal-950/60 border border-teal-800/50">
+            x402 Auto-Pay Protocol Active
+          </span>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs font-mono">
+          <div class="bg-subcard border border-slate-800 rounded-xl p-3">
+            <div class="text-slate-500 text-[10px] uppercase">Monitored Pair</div>
+            <div class="font-bold text-white mt-1 text-sm" id="scout-pair">USDC / cirBTC</div>
+            <div class="text-[10px] text-teal-400 mt-0.5">Arc DEX AMM Pool</div>
+          </div>
+          <div class="bg-subcard border border-slate-800 rounded-xl p-3">
+            <div class="text-slate-500 text-[10px] uppercase">Price Spread</div>
+            <div class="font-bold text-emerald-400 mt-1 text-sm" id="scout-spread">+2.4% Arb</div>
+            <div class="text-[10px] text-slate-400 mt-0.5">Opportunity Detected</div>
+          </div>
+          <div class="bg-subcard border border-slate-800 rounded-xl p-3">
+            <div class="text-slate-500 text-[10px] uppercase">Scout x402 Micropay</div>
+            <div class="font-bold text-indigo-300 mt-1 text-sm" id="scout-x402-cost">0.005 USDC</div>
+            <div class="text-[10px] text-indigo-400 mt-0.5 truncate" id="scout-x402-status">Unlocked via memo</div>
+          </div>
+          <div class="bg-subcard border border-slate-800 rounded-xl p-3">
+            <div class="text-slate-500 text-[10px] uppercase">Active Target Router</div>
+            <div class="font-bold text-cyan-300 mt-1 text-sm font-mono truncate" id="scout-router">0xDf80031044...</div>
+            <div class="text-[10px] text-slate-400 mt-0.5">ArcoxRouter.sol</div>
+          </div>
+        </div>
+      </div>
+
       <!-- Live Gemini Autonomous Reasoning Box -->
       <div class="bg-cardbg border border-indigo-500/30 rounded-2xl p-5 md:p-6 shadow-2xl relative overflow-hidden">
         <div class="absolute top-0 right-0 w-80 h-80 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none"></div>
@@ -329,12 +372,12 @@ app.get('/', (req, res) => {
 
         <!-- Category Filters -->
         <div class="flex flex-wrap gap-1.5 text-xs font-mono">
-          <button onclick="filterCategory('ALL')" class="tool-cat-btn px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-bold transition">All (71)</button>
-          <button onclick="filterCategory('EXECUTION')" class="tool-cat-btn px-3 py-1.5 rounded-lg bg-subcard hover:bg-slate-800 text-slate-300 border border-slate-800 transition">⚡ Execution</button>
-          <button onclick="filterCategory('INTEL')" class="tool-cat-btn px-3 py-1.5 rounded-lg bg-subcard hover:bg-slate-800 text-slate-300 border border-slate-800 transition">🧠 Intel (x402)</button>
-          <button onclick="filterCategory('TELEMETRY')" class="tool-cat-btn px-3 py-1.5 rounded-lg bg-subcard hover:bg-slate-800 text-slate-300 border border-slate-800 transition">📊 Telemetry</button>
-          <button onclick="filterCategory('PAYMENT')" class="tool-cat-btn px-3 py-1.5 rounded-lg bg-subcard hover:bg-slate-800 text-slate-300 border border-slate-800 transition">💳 ARCOX Pay</button>
-          <button onclick="filterCategory('AGENT')" class="tool-cat-btn px-3 py-1.5 rounded-lg bg-subcard hover:bg-slate-800 text-slate-300 border border-slate-800 transition">🤖 Agent Economy</button>
+          <button onclick="filterCategory('ALL', this)" class="tool-cat-btn px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-bold transition">All (71)</button>
+          <button onclick="filterCategory('EXECUTION', this)" class="tool-cat-btn px-3 py-1.5 rounded-lg bg-subcard hover:bg-slate-800 text-slate-300 border border-slate-800 transition">⚡ Execution</button>
+          <button onclick="filterCategory('INTEL', this)" class="tool-cat-btn px-3 py-1.5 rounded-lg bg-subcard hover:bg-slate-800 text-slate-300 border border-slate-800 transition">🧠 Intel (x402)</button>
+          <button onclick="filterCategory('TELEMETRY', this)" class="tool-cat-btn px-3 py-1.5 rounded-lg bg-subcard hover:bg-slate-800 text-slate-300 border border-slate-800 transition">📊 Telemetry</button>
+          <button onclick="filterCategory('PAYMENT', this)" class="tool-cat-btn px-3 py-1.5 rounded-lg bg-subcard hover:bg-slate-800 text-slate-300 border border-slate-800 transition">💳 ARCOX Pay</button>
+          <button onclick="filterCategory('AGENT', this)" class="tool-cat-btn px-3 py-1.5 rounded-lg bg-subcard hover:bg-slate-800 text-slate-300 border border-slate-800 transition">🤖 Agent Economy</button>
         </div>
 
         <!-- Tools Grid -->
@@ -397,8 +440,8 @@ app.get('/', (req, res) => {
     </div>
 
     <!-- ═══════════ INTERACTIVE TOOL RUNNER MODAL ═══════════ -->
-    <div id="tool-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
-      <div class="bg-cardbg border border-slate-700 rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto custom-scroll">
+    <div id="tool-modal" onclick="handleModalBackdrop(event, 'tool-modal')" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
+      <div class="bg-cardbg border border-slate-700 rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto custom-scroll" onclick="event.stopPropagation()">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
             <span class="text-2xl">⚡</span>
@@ -411,7 +454,10 @@ app.get('/', (req, res) => {
         </div>
 
         <div class="space-y-2">
-          <label class="text-xs uppercase font-bold text-slate-400 font-mono">Parameters (JSON):</label>
+          <div class="flex items-center justify-between">
+            <label class="text-xs uppercase font-bold text-slate-400 font-mono">Parameters (JSON):</label>
+            <button onclick="resetDefaultParams()" class="text-[11px] text-indigo-400 hover:underline font-mono">Reset Defaults</button>
+          </div>
           <textarea id="modal-tool-params" rows="5" class="w-full p-3 bg-subcard border border-slate-700 rounded-xl text-xs font-mono text-cyan-300 focus:outline-none focus:border-indigo-500"></textarea>
         </div>
 
@@ -433,8 +479,8 @@ app.get('/', (req, res) => {
     </div>
 
     <!-- ═══════════ FAUCET MODAL ═══════════ -->
-    <div id="faucet-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
-      <div class="bg-cardbg border border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+    <div id="faucet-modal" onclick="handleModalBackdrop(event, 'faucet-modal')" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
+      <div class="bg-cardbg border border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4" onclick="event.stopPropagation()">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
             <span class="text-2xl">🚰</span>
@@ -478,6 +524,21 @@ app.get('/', (req, res) => {
     let allToolsList = [];
     let currentCategory = 'ALL';
     let currentActiveTool = null;
+
+    // Handle Escape key to close modals
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeToolModal();
+        closeFaucetModal();
+      }
+    });
+
+    function handleModalBackdrop(event, modalId) {
+      if (event.target.id === modalId) {
+        if (modalId === 'tool-modal') closeToolModal();
+        if (modalId === 'faucet-modal') closeFaucetModal();
+      }
+    }
 
     function switchTab(tabId) {
       document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
@@ -550,6 +611,14 @@ app.get('/', (req, res) => {
           const solBal = balObj?.Solana_Devnet || {};
           document.getElementById('stat-solana-usdc').innerText = (solBal.usdc?.amount || '0.00') + ' USDC';
           document.getElementById('solana-address').innerText = 'ATA: ' + (solBal.usdc?.ata ? solBal.usdc.ata.slice(0, 8) + '...' : 'N/A');
+
+          // Update Scout Market Signal
+          if (statusRes.latestCycle?.marketSignal) {
+            const sig = statusRes.latestCycle.marketSignal;
+            document.getElementById('scout-pair').innerText = sig.tokenPair || 'USDC / cirBTC';
+            document.getElementById('scout-spread').innerText = (sig.priceSpread || '+2.4%') + ' Arb';
+            document.getElementById('scout-x402-status').innerText = sig.x402Paid ? 'Paid: ' + (sig.x402TxHash ? sig.x402TxHash.slice(0, 8) + '...' : 'Confirmed') : 'Unlocked';
+          }
 
           // Update Latest Cycle Reasoning & Execution
           if (statusRes.latestCycle && statusRes.latestCycle.autonomousDecision) {
@@ -696,7 +765,7 @@ app.get('/', (req, res) => {
 
       const grid = document.getElementById('tools-grid');
       if (filtered.length === 0) {
-        grid.innerHTML = '<div class="col-span-full py-8 text-center text-slate-500">No tools matching filter.</div>';
+        grid.innerHTML = '<div class="col-span-full py-8 text-center text-slate-500 font-mono text-xs">No tools matching filter.</div>';
         return;
       }
 
@@ -720,7 +789,7 @@ app.get('/', (req, res) => {
           '</div>' +
           '<div class="pt-2 border-t border-slate-800/80 flex items-center justify-between">' +
             '<span class="text-[10px] font-mono text-slate-500">mcp-runtime</span>' +
-            '<button onclick="openToolModal(\\'' + t.name + '\\')" class="px-3 py-1 text-xs font-bold rounded-lg bg-indigo-600/30 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-500/40 transition flex items-center gap-1">' +
+            '<button onclick="openToolModal(\\'' + t.name + '\\')" class="px-3 py-1 text-xs font-bold rounded-lg bg-indigo-600/30 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-500/40 transition flex items-center gap-1 active:scale-95">' +
               '<span>▶</span> <span>Run</span>' +
             '</button>' +
           '</div>' +
@@ -728,12 +797,14 @@ app.get('/', (req, res) => {
       }).join('');
     }
 
-    function filterCategory(cat) {
+    function filterCategory(cat, btnElem) {
       currentCategory = cat;
       document.querySelectorAll('.tool-cat-btn').forEach(btn => {
         btn.className = 'tool-cat-btn px-3 py-1.5 rounded-lg bg-subcard hover:bg-slate-800 text-slate-300 border border-slate-800 transition';
       });
-      event.target.className = 'tool-cat-btn px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-bold transition';
+      if (btnElem) {
+        btnElem.className = 'tool-cat-btn px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-bold transition';
+      }
       renderToolsGrid();
     }
 
@@ -752,6 +823,12 @@ app.get('/', (req, res) => {
       const modal = document.getElementById('tool-modal');
       modal.classList.remove('hidden');
       modal.classList.add('flex');
+    }
+
+    function resetDefaultParams() {
+      if (currentActiveTool) {
+        document.getElementById('modal-tool-params').value = JSON.stringify(currentActiveTool.defaultParams || {}, null, 2);
+      }
     }
 
     function closeToolModal() {
@@ -807,6 +884,7 @@ app.get('/', (req, res) => {
         'CYCLE_START': 'text-emerald-400 font-bold',
         'CYCLE_END': 'text-emerald-400 font-bold',
         'ERROR': 'text-rose-400 font-bold',
+        'USER_TOOL_CALL': 'text-pink-400 font-bold',
       };
       const color = tagColors[log.tag] || 'text-slate-400';
       const line = document.createElement('div');
@@ -963,56 +1041,104 @@ app.get('/api/fleet/status', async (req, res) => {
   }
 })
 
-// ─── 3. Full 71 MCP Tools Catalog API ───
+// ─── 3. Full 71 MCP Tools Catalog API with Comprehensive Default Params ───
+const TOOL_METADATA_MAP = {
+  // Execution
+  executeSwap: { category: 'EXECUTION', description: 'Execute on-chain token swap on Arc DEX AMM router.', defaultParams: { tokenIn: 'USDC', tokenOut: 'cirBTC', amount: '0.01', source: 'eoa' } },
+  executeBridge: { category: 'EXECUTION', description: 'Execute CCTP cross-chain bridge (Arc -> Base Sepolia) via ArcoxRouter.', defaultParams: { fromChain: 'Arc_Testnet', toChain: 'Base_Sepolia', token: 'USDC', amount: '0.01', source: 'eoa' } },
+  executeSend: { category: 'EXECUTION', description: 'Send USDC or token to counterparty via ArcoxRouter.sendTokenWithFee.', defaultParams: { to: '0x5294E9927c3306DcBaDb03fe70b92e01cCede505', token: 'USDC', amount: '0.01', source: 'eoa' } },
+  executeConfirmedSwap: { category: 'EXECUTION', description: 'Execute confirmed swap with preview confirmation.', defaultParams: { tokenIn: 'USDC', tokenOut: 'cirBTC', amount: '0.01', confirmed: true } },
+  executeConfirmedBridge: { category: 'EXECUTION', description: 'Execute confirmed CCTP bridge with preview confirmation.', defaultParams: { fromChain: 'Arc_Testnet', toChain: 'Base_Sepolia', token: 'USDC', amount: '0.01', confirmed: true } },
+  executeConfirmedSend: { category: 'EXECUTION', description: 'Execute confirmed token send with preview confirmation.', defaultParams: { to: '0x5294E9927c3306DcBaDb03fe70b92e01cCede505', token: 'USDC', amount: '0.01', confirmed: true } },
+  depositUnifiedBalance: { category: 'EXECUTION', description: 'Deposit USDC to AI Router Unified Balance for compute runway.', defaultParams: { amount: '0.05' } },
+  retryBridgeMint: { category: 'EXECUTION', description: 'Retry destination mint for CCTP bridge message.', defaultParams: { burnTx: '0x5c1fddfa876423ec94880a7e8d4712fd64a26c9e3da3fbeb4c574788e68927e8' } },
+  retryConfirmedBridge: { category: 'EXECUTION', description: 'Retry confirmed bridge transaction.', defaultParams: { burnTx: '0x5c1fddfa876423ec94880a7e8d4712fd64a26c9e3da3fbeb4c574788e68927e8' } },
+
+  // Intel (x402)
+  intelGetToken: { category: 'INTEL', description: 'Fetch real-time Arkham token intelligence, volume, and trending status.', defaultParams: { id: 'BTC' } },
+  intelGetAddress: { category: 'INTEL', description: 'Analyze wallet flows, counterparties, and smart money movements.', defaultParams: { address: '0x5294E9927c3306DcBaDb03fe70b92e01cCede505' } },
+  intelGetEntity: { category: 'INTEL', description: 'Inspect institutional entity reserves (Circle, major funds, market makers).', defaultParams: { entity: 'circle' } },
+  intelGetContract: { category: 'INTEL', description: 'Fetch smart contract verification status, creator, and bytecode security.', defaultParams: { address: '0xDf800310443BEB589CEf91A09854203Ea36e43a7' } },
+  intelGetTx: { category: 'INTEL', description: 'Analyze on-chain transaction traces and gas fees.', defaultParams: { hash: '0xc86317e80240df3ae083dfbf3f25b3a9a9a5a9a7c86378524d33e9a82000de6a' } },
+  intelSearch: { category: 'INTEL', description: 'Search Arkham global intelligence database for whale activity.', defaultParams: { query: 'arc testnet whale' } },
+  intelQuoteWalletReport: { category: 'INTEL', description: 'Quote comprehensive Arkham wallet audit report.', defaultParams: { address: '0x5294E9927c3306DcBaDb03fe70b92e01cCede505' } },
+  intelExecuteWalletReport: { category: 'INTEL', description: 'Execute comprehensive Arkham wallet audit report.', defaultParams: { address: '0x5294E9927c3306DcBaDb03fe70b92e01cCede505' } },
+  x402PayInvoice: { category: 'INTEL', description: 'Autonomously pay x402 invoice via on-chain USDC memo.', defaultParams: { invoiceId: 'inv_arcox_x402', confirmed: true, confirmationText: 'yes' } },
+  x402InvoiceStatus: { category: 'INTEL', description: 'Query status of an x402 intelligence invoice.', defaultParams: { invoiceId: 'inv_arcox_x402' } },
+
+  // Telemetry & Discovery
+  walletBalances: { category: 'TELEMETRY', description: 'Query live multi-chain wallet balances (Arc, Circle Dev, Solana Devnet).', defaultParams: {} },
+  transactionHistory: { category: 'TELEMETRY', description: 'Audit recent on-chain transactions across all connected networks.', defaultParams: {} },
+  serviceCatalog: { category: 'TELEMETRY', description: 'Query complete ARCOX MCP services, routes, and fee structures.', defaultParams: {} },
+  agentStatus: { category: 'TELEMETRY', description: 'Check agent operational status, active configuration, and health telemetry.', defaultParams: {} },
+  agentAccount: { category: 'TELEMETRY', description: 'Get agent EOA and Circle wallet account identifiers.', defaultParams: {} },
+  mscaStatus: { category: 'TELEMETRY', description: 'Inspect Model Armor / MSCA policy guardrails and daily spend limits.', defaultParams: {} },
+  getAiRouterStatus: { category: 'TELEMETRY', description: 'Check AI Router status and compute runway balance.', defaultParams: {} },
+  getUnifiedBalance: { category: 'TELEMETRY', description: 'Get total confirmed Unified Balance across AI router routes.', defaultParams: {} },
+  listAiModels: { category: 'TELEMETRY', description: 'List available AI models supported by ARCOX AI Router.', defaultParams: {} },
+  callAiModel: { category: 'TELEMETRY', description: 'Call AI model via AI Router with Unified Balance auto-pay.', defaultParams: { model: 'gemini-1.5-flash', prompt: 'Summarize Arc network liquidity state' } },
+  routerFor: { category: 'TELEMETRY', description: 'Get verified router address for specified network.', defaultParams: { chain: 'Arc_Testnet' } },
+  nativeSwapBridgeRouterFor: { category: 'TELEMETRY', description: 'Get native swap & bridge router address.', defaultParams: { chain: 'Arc_Testnet' } },
+  normalizeChainName: { category: 'TELEMETRY', description: 'Normalize network name identifier.', defaultParams: { chain: 'arc' } },
+  metadataFor: { category: 'TELEMETRY', description: 'Get chain metadata and RPC parameters.', defaultParams: { chain: 'Arc_Testnet' } },
+  getApiKeyStatus: { category: 'TELEMETRY', description: 'Check status of AI API keys.', defaultParams: {} },
+  getUsageLogs: { category: 'TELEMETRY', description: 'Query AI Router usage and billing logs.', defaultParams: {} },
+
+  // Payment
+  createPaymentRequest: { category: 'PAYMENT', description: 'Create an on-chain USDC payment request / invoice on Arc Testnet.', defaultParams: { amount: '0.01', token: 'USDC', memo: 'Fleet autonomous payment' } },
+  getPaymentRequest: { category: 'PAYMENT', description: 'Query status of an ARCOX Pay invoice.', defaultParams: { requestId: 'req_001' } },
+  payPaymentRequest: { category: 'PAYMENT', description: 'Settle an ARCOX Pay invoice using wallet USDC balance.', defaultParams: { requestId: 'req_001', amount: '0.01' } },
+  payListRecentPayments: { category: 'PAYMENT', description: 'List recent inbound and outbound payment ledger transactions.', defaultParams: {} },
+  payGetPaymentStatus: { category: 'PAYMENT', description: 'Check payment settlement receipt.', defaultParams: { paymentId: 'pay_001' } },
+  checkPaymentStatus: { category: 'PAYMENT', description: 'Check payment verification status.', defaultParams: { paymentId: 'pay_001' } },
+  quotePaymentRequest: { category: 'PAYMENT', description: 'Quote fee for creating payment request.', defaultParams: { amount: '0.01', token: 'USDC' } },
+  quoteEcoRoutePayment: { category: 'PAYMENT', description: 'Quote eco-route gas-optimized payment.', defaultParams: { amount: '0.01' } },
+  quoteSend: { category: 'PAYMENT', description: 'Quote fees and net amount for token send.', defaultParams: { to: '0x5294E9927c3306DcBaDb03fe70b92e01cCede505', token: 'USDC', amount: '0.01' } },
+  quoteSwap: { category: 'PAYMENT', description: 'Quote exchange rate and minimum output for DEX swap.', defaultParams: { tokenIn: 'USDC', tokenOut: 'cirBTC', amountIn: '0.01' } },
+  quoteBridge: { category: 'PAYMENT', description: 'Quote CCTP cross-chain bridge fee and net amount.', defaultParams: { fromChain: 'Arc_Testnet', toChain: 'Base_Sepolia', token: 'USDC', amount: '0.01' } },
+  quoteUnifiedBalanceDeposit: { category: 'PAYMENT', description: 'Quote deposit fee for Unified Balance compute top-up.', defaultParams: { amount: '0.05' } },
+  quoteAiRouterAutoPay: { category: 'PAYMENT', description: 'Quote auto-pay deduction rate for AI router inference.', defaultParams: {} },
+  setAiRouterAutoPay: { category: 'PAYMENT', description: 'Enable or disable AI Router Unified Balance auto-pay.', defaultParams: { enabled: true } },
+
+  // Agent Economy
+  registerAgentIdentity: { category: 'AGENT', description: 'Register agent identity with name and endpoint in ARCOX registry.', defaultParams: { name: 'arcox-fleet-agent', endpoint: 'https://43.134.14.43.nip.io/fleet' } },
+  listAgentIdentities: { category: 'AGENT', description: 'List all registered agent identities in the ARCOX registry.', defaultParams: {} },
+  getAgentIdentity: { category: 'AGENT', description: 'Get active agent identity profile and reputation.', defaultParams: {} },
+  selectAgentIdentity: { category: 'AGENT', description: 'Switch active agent identity context.', defaultParams: { agentId: 'arcox-fleet-agent' } },
+  createAgentJob: { category: 'AGENT', description: 'Create autonomous task/job for other agents to execute.', defaultParams: { title: 'Arbitrage Opportunity Scanner', reward: '0.1' } },
+  createIdentityBoundAgentJob: { category: 'AGENT', description: 'Create job bound specifically to agent identity.', defaultParams: { title: 'DEX Liquidity Provisioning', agentId: 'arcox-fleet-agent' } },
+  fundAgentJob: { category: 'AGENT', description: 'Fund escrow budget for agent job.', defaultParams: { jobId: 'job_001', amount: '0.05' } },
+  submitAgentJob: { category: 'AGENT', description: 'Submit completed proof of work for agent job.', defaultParams: { jobId: 'job_001', result: 'Completed successfully' } },
+  completeAgentJob: { category: 'AGENT', description: 'Mark agent job complete and release escrow payout.', defaultParams: { jobId: 'job_001' } },
+  setAgentJobBudget: { category: 'AGENT', description: 'Set or update job maximum budget.', defaultParams: { jobId: 'job_001', budget: '0.1' } },
+  listIdentityBoundAgentJobs: { category: 'AGENT', description: 'List jobs assigned to this agent identity.', defaultParams: {} },
+  readAgent: { category: 'AGENT', description: 'Read agent configuration and registered metadata.', defaultParams: {} },
+  readJob: { category: 'AGENT', description: 'Read agent job details and execution state.', defaultParams: { jobId: 'job_001' } },
+  assertTransactionIdentity: { category: 'AGENT', description: 'Cryptographically assert transaction origin to agent identity.', defaultParams: { txHash: '0xc86317e80240df3ae083dfbf3f25b3a9a9a5a9a7c86378524d33e9a82000de6a' } },
+  classifyPrompt: { category: 'AGENT', description: 'Classify user prompt into optimal ARCOX tool and intent.', defaultParams: { text: 'Swap 1 USDC to cirBTC on Arc' } },
+  makeAgentResponse: { category: 'AGENT', description: 'Format structured agent response envelope.', defaultParams: { message: 'Action executed successfully.' } },
+  createAiApiKey: { category: 'AGENT', description: 'Generate sub-agent API key for AI compute runway.', defaultParams: { name: 'fleet-subagent-01' } },
+  deleteAiApiKey: { category: 'AGENT', description: 'Revoke sub-agent API key.', defaultParams: { keyId: 'key_001' } },
+  createApiSession: { category: 'AGENT', description: 'Establish authenticated session for MSCA x402 operations.', defaultParams: {} },
+  refreshApiSession: { category: 'AGENT', description: 'Refresh active session token.', defaultParams: {} },
+  backendSession: { category: 'AGENT', description: 'Get active backend session state.', defaultParams: {} },
+  simulateCircleWebhook: { category: 'AGENT', description: 'Simulate Circle webhook event for testing payout flows.', defaultParams: { type: 'transfer.completed' } },
+}
+
 app.get('/api/fleet/tools', (req, res) => {
   const tools = orchestrator.mcpClient.listTools()
   const categorizedTools = tools.map(name => {
-    let category = 'GENERAL'
-    let description = 'Native ARCOX MCP Tool'
-    let defaultParams = {}
+    const meta = TOOL_METADATA_MAP[name] || {}
+    let category = meta.category || 'GENERAL'
+    let description = meta.description || 'Native ARCOX MCP Tool'
+    let defaultParams = meta.defaultParams || {}
 
-    if (name.startsWith('execute') || name.includes('Swap') || name.includes('Bridge') || name.includes('Send') || name.includes('deposit')) {
-      category = 'EXECUTION'
-      if (name === 'executeSwap') {
-        description = 'Execute on-chain token swap on Arc DEX AMM router.'
-        defaultParams = { tokenIn: 'USDC', tokenOut: 'cirBTC', amount: '0.01', source: 'eoa' }
-      } else if (name === 'executeBridge') {
-        description = 'Execute CCTP cross-chain bridge (Arc -> Base Sepolia) via ArcoxRouter.'
-        defaultParams = { fromChain: 'Arc_Testnet', toChain: 'Base_Sepolia', token: 'USDC', amount: '0.01', source: 'eoa' }
-      } else if (name === 'executeSend') {
-        description = 'Send USDC or token to counterparty via ArcoxRouter.sendTokenWithFee.'
-        defaultParams = { to: '0x5294E9927c3306DcBaDb03fe70b92e01cCede505', token: 'USDC', amount: '0.01', source: 'eoa' }
-      }
-    } else if (name.startsWith('intel') || name.includes('x402') || name.includes('Report')) {
-      category = 'INTEL'
-      if (name === 'intelGetToken') {
-        description = 'Fetch real-time Arkham token intelligence and trending tokens.'
-        defaultParams = { id: 'BTC' }
-      } else if (name === 'intelGetAddress') {
-        description = 'Analyze wallet flows, smart money movements, and counterparties.'
-        defaultParams = { address: '0x5294E9927c3306DcBaDb03fe70b92e01cCede505' }
-      } else if (name === 'intelSearch') {
-        description = 'Search Arkham intelligence database for whale activity.'
-        defaultParams = { query: 'arc testnet whale' }
-      }
-    } else if (name.includes('Balances') || name.includes('History') || name.includes('Status') || name.includes('Catalog') || name.includes('AiModel')) {
-      category = 'TELEMETRY'
-      if (name === 'walletBalances') description = 'Query live multi-chain wallet balances (Arc, Circle, Solana).'
-      if (name === 'transactionHistory') description = 'Audit recent multi-chain transaction history.'
-      if (name === 'serviceCatalog') description = 'Query complete ARCOX MCP services and routes catalog.'
-    } else if (name.includes('Pay') || name.includes('Payment')) {
-      category = 'PAYMENT'
-      if (name === 'createPaymentRequest') {
-        description = 'Create on-chain USDC payment request / invoice on Arc.'
-        defaultParams = { amount: '0.01', token: 'USDC', memo: 'Fleet autonomous payment' }
-      }
-    } else if (name.includes('Agent') || name.includes('Job') || name.includes('Identity')) {
-      category = 'AGENT'
-      if (name === 'listAgentIdentities') description = 'List all registered agent identities in the ARCOX agent registry.'
-      if (name === 'registerAgentIdentity') {
-        description = 'Register agent identity in decentralized ARCOX registry.'
-        defaultParams = { name: 'arcox-fleet-agent', endpoint: 'https://43.134.14.43.nip.io/fleet' }
-      }
+    if (category === 'GENERAL') {
+      if (name.startsWith('execute') || name.includes('Swap') || name.includes('Bridge') || name.includes('Send')) category = 'EXECUTION'
+      else if (name.startsWith('intel') || name.includes('x402')) category = 'INTEL'
+      else if (name.includes('Balances') || name.includes('History') || name.includes('Status')) category = 'TELEMETRY'
+      else if (name.includes('Pay') || name.includes('Payment')) category = 'PAYMENT'
+      else if (name.includes('Agent') || name.includes('Job')) category = 'AGENT'
     }
 
     return { name, category, description, defaultParams }
@@ -1106,13 +1232,17 @@ app.get('/api/fleet/logs', async (req, res) => {
   }
 })
 
-// ─── 10. Downloads ───
+// ─── 10. Direct Downloads Routes ───
 app.get('/download-demo', (req, res) => {
   res.download(path.join(__dirname, '../public/arcox-fleet-demo.mp4'), 'ARCOX_Fleet_Demo.mp4')
 })
 
 app.get('/download-thumbnail', (req, res) => {
   res.download(path.join(__dirname, '../public/thumbnail.png'), 'ARCOX_Fleet_Thumbnail.png')
+})
+
+app.get('/download-architecture', (req, res) => {
+  res.download(path.join(__dirname, '../public/architecture_diagram.png'), 'ARCOX_Fleet_Architecture_Diagram.png')
 })
 
 if (process.env.VERCEL !== '1') {
