@@ -671,7 +671,11 @@ export class ArcoxMcpClient {
       'solana': 5,
     }
 
-    const destDomain = CHAIN_DOMAINS[toChain] !== undefined ? CHAIN_DOMAINS[toChain] : (toChain.includes('Arbitrum') ? 3 : (toChain.includes('Ethereum') || toChain.includes('Sepolia') && !toChain.includes('Base') ? 0 : 6))
+    const targetChain = String(toChain || 'Base_Sepolia')
+    const isEthereumSepolia = targetChain.includes('Ethereum') || (targetChain.includes('Sepolia') && !targetChain.includes('Base'))
+    const destDomain = CHAIN_DOMAINS[targetChain] !== undefined 
+      ? CHAIN_DOMAINS[targetChain] 
+      : (targetChain.includes('Arbitrum') ? 3 : (isEthereumSepolia ? 0 : 6))
 
     if (this.publicClient) {
       try {
@@ -754,7 +758,8 @@ export class ArcoxMcpClient {
     // 2. Call bridgeUsdcWithFee on ArcoxRouter
     const recipientBytes32 = pad(this.account.address, { size: 32 })
     const destinationCaller = '0x0000000000000000000000000000000000000000000000000000000000000000'
-    const destDomain = Number(quote.destinationDomain) !== undefined ? Number(quote.destinationDomain) : 6
+    const rawDomain = Number(quote?.destinationDomain)
+    const destDomain = !isNaN(rawDomain) ? rawDomain : 6
 
     console.log(`[CCTP Bridge] 2️⃣ Calling bridgeUsdcWithFee on ArcoxRouter (Domain: ${destDomain})...`)
     const bridgeTx = await this.walletClient.writeContract({

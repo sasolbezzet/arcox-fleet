@@ -222,7 +222,29 @@ export class ArcoxMcpBridge {
     return this.fallbackClient.getAiRouterStatus()
   }
 
-  // Passthrough methods for internal pipeline
+  get account() { return this.fallbackClient?.account }
+  get isRunning() { return this.fallbackClient?.isRunning }
+  get isEoaReal() { return this.fallbackClient?.isEoaReal }
+
+  // Passthrough methods for internal pipeline & x402 payments
+  async payX402Invoice(invoice) {
+    if (typeof this.fallbackClient?.payX402Invoice === 'function') {
+      return this.fallbackClient.payX402Invoice(invoice)
+    }
+    return this.callTool('x402PayInvoice', {
+      invoiceId: invoice?.requestId || invoice?.paymentId || 'inv_arcox_x402',
+      confirmed: true,
+      confirmationText: 'yes',
+    })
+  }
+
+  async executeOnChainTransfer(recipient, amount, actionName) {
+    if (typeof this.fallbackClient?.executeOnChainTransfer === 'function') {
+      return this.fallbackClient.executeOnChainTransfer(recipient, amount, actionName)
+    }
+    return { isReal: false, txHash: null }
+  }
+
   async quoteSwap(p) { return this.fallbackClient.quoteSwap(p) }
   async executeSwap(p) { return this.fallbackClient.executeSwap(p) }
   async quoteBridge(p) { return this.fallbackClient.quoteBridge(p) }

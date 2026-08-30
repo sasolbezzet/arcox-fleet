@@ -19,9 +19,9 @@ app.use(express.json())
 // CORS middleware
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*')
-  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-  if (req.method === 'OPTIONS') return res.sendStatus(200)
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, HEAD')
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-arcox-agent-token, x-payment-id, x-arcox-payment-proof, Accept, Origin, X-Requested-With')
+  if (req.method === 'OPTIONS') return res.sendStatus(204)
   next()
 })
 
@@ -1165,62 +1165,78 @@ const TOOL_METADATA_MAP = {
   simulateCircleWebhook: { category: 'AGENT', description: 'Simulate Circle webhook event for testing payout flows.', defaultParams: { type: 'transfer.completed' } },
 }
 
+// ─── 3. Tools Catalog API ───
 app.get('/api/fleet/tools', (req, res) => {
-  const tools = orchestrator.mcpClient.listTools()
-  const categorizedTools = tools.map(name => {
-    const meta = TOOL_METADATA_MAP[name] || {}
-    let category = meta.category || 'GENERAL'
-    let description = meta.description || 'Native ARCOX MCP Tool'
-    let defaultParams = meta.defaultParams || {}
+  try {
+    const tools = orchestrator.mcpClient.listTools()
+    const categorizedTools = tools.map(name => {
+      const meta = TOOL_METADATA_MAP[name] || {}
+      let category = meta.category || 'GENERAL'
+      let description = meta.description || 'Native ARCOX MCP Tool'
+      let defaultParams = meta.defaultParams || {}
 
-    if (category === 'GENERAL') {
-      if (name.startsWith('execute') || name.includes('Swap') || name.includes('Bridge') || name.includes('Send')) category = 'EXECUTION'
-      else if (name.startsWith('intel') || name.includes('x402')) category = 'INTEL'
-      else if (name.includes('Balances') || name.includes('History') || name.includes('Status')) category = 'TELEMETRY'
-      else if (name.includes('Pay') || name.includes('Payment')) category = 'PAYMENT'
-      else if (name.includes('Agent') || name.includes('Job')) category = 'AGENT'
-    }
+      if (category === 'GENERAL') {
+        if (name.startsWith('execute') || name.includes('Swap') || name.includes('Bridge') || name.includes('Send')) category = 'EXECUTION'
+        else if (name.startsWith('intel') || name.includes('x402')) category = 'INTEL'
+        else if (name.includes('Balances') || name.includes('History') || name.includes('Status')) category = 'TELEMETRY'
+        else if (name.includes('Pay') || name.includes('Payment')) category = 'PAYMENT'
+        else if (name.includes('Agent') || name.includes('Job')) category = 'AGENT'
+      }
 
-    return { name, category, description, defaultParams }
-  })
+      return { name, category, description, defaultParams }
+    })
 
-  res.json({ ok: true, count: categorizedTools.length, tools: categorizedTools })
+    res.json({ ok: true, count: categorizedTools.length, tools: categorizedTools })
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err?.message || 'Failed to list tools' })
+  }
 })
 
 // ─── 4. Direct Tool Execution API ───
 app.post('/api/fleet/call-tool', async (req, res) => {
   try {
-    const { toolName, params = {} } = req.body
-    if (!toolName) return res.status(400).json({ ok: false, error: 'toolName is required' })
+    const body = req.body || {}
+    const toolName = body.toolName
+    const params = body.params || {}
+    if (!toolName || typeof toolName !== 'string') {
+      return res.status(400).json({ ok: false, error: 'toolName string is required' })
+    }
 
     orchestrator.log('USER_TOOL_CALL', `User manually invoked tool: ${toolName}`)
     const result = await orchestrator.mcpClient.callTool(toolName, params)
-    res.json({ ok: result.ok !== false, toolName, result })
+    res.json({ ok: result?.ok !== false, toolName, result })
   } catch (err) {
-    res.status(500).json({ ok: false, error: err.message })
+    res.status(500).json({ ok: false, error: err?.message || 'Tool execution error' })
   }
 })
 
 // ─── 5. Server-Sent Events (SSE) Live Log Stream ───
 app.get('/api/fleet/stream', (req, res) => {
   res.setHeader('Content-Type', 'text/event-stream')
-  res.setHeader('Cache-Control', 'no-cache')
+  res.setHeader('Cache-Control', 'no-cache, no-transform')
   res.setHeader('Connection', 'keep-alive')
+  res.setHeader('X-Accel-Buffering', 'no')
   res.flushHeaders()
 
   // Send initial recent logs
   for (const log of orchestrator.recentLogs.slice(-20)) {
-    res.write(`data: ${JSON.stringify({ type: 'LOG', log })}\n\n`)
+    if (!res.writableEnded) {
+      res.write(`data: ${JSON.stringify({ type: 'LOG', log })}\n\n`)
+    }
   }
 
   // Subscribe to new logs
   const unsubscribe = orchestrator.subscribeLogs(log => {
-    res.write(`data: ${JSON.stringify({ type: 'LOG', log })}\n\n`)
+    if (!res.writableEnded) {
+      res.write(`data: ${JSON.stringify({ type: 'LOG', log })}\n\n`)
+    }
   })
 
   // Periodic heartbeat
   const pingInterval = setInterval(() => {
-    res.write(`data: ${JSON.stringify({ type: 'PING', timestamp: Date.now() })}\n\n`)
+    if (!res.writableEnded) {
+      res.write(`data: ${JSON.stringify({ type: 'PING', timestamp: Date.now() })}\n\n`)
+    }
   }, 15000)
 
   req.on('close', () => {
@@ -1231,44 +1247,57 @@ app.get('/api/fleet/stream', (req, res) => {
 
 // ─── 6. Daemon Control APIs ───
 app.post('/api/fleet/daemon/start', (req, res) => {
-  const interval = Number(process.env.AUTONOMOUS_INTERVAL_SECONDS) || 60
-  orchestrator.startAutonomousDaemon(interval)
-  res.json({ ok: true, running: true, message: 'Autonomous daemon started' })
+  try {
+    const rawInterval = Number(req.body?.interval || process.env.AUTONOMOUS_INTERVAL_SECONDS) || 60
+    const interval = Math.min(Math.max(5, rawInterval), 86400)
+    orchestrator.startAutonomousDaemon(interval)
+    res.json({ ok: true, running: true, intervalSeconds: interval, message: 'Autonomous daemon started' })
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err?.message || 'Failed to start daemon' })
+  }
 })
 
 app.post('/api/fleet/daemon/stop', (req, res) => {
-  orchestrator.stopAutonomousDaemon()
-  res.json({ ok: true, running: false, message: 'Autonomous daemon stopped' })
+  try {
+    orchestrator.stopAutonomousDaemon()
+    res.json({ ok: true, running: false, message: 'Autonomous daemon stopped' })
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err?.message || 'Failed to stop daemon' })
+  }
 })
 
 // ─── 7. Run 1 Cycle Manually ───
 app.post('/api/fleet/run-cycle', async (req, res) => {
   try {
+    if (orchestrator.isCycleRunning) {
+      return res.status(409).json({ ok: false, error: 'A cycle is already running', running: true })
+    }
     const result = await orchestrator.runAutonomousCycle('API_REQUEST')
     res.json({ ok: true, result })
   } catch (error) {
-    res.status(500).json({ ok: false, error: error.message })
+    res.status(500).json({ ok: false, error: error?.message || 'Cycle execution failed' })
   }
 })
 
 // ─── 8. Faucet Claim API ───
 app.post('/api/fleet/claim-faucet', async (req, res) => {
   try {
-    const walletAddress = orchestrator.mcpClient.account ? orchestrator.mcpClient.account.address : req.body.address
-    const result = await orchestrator.mcpClient.claimTestnetUsdcFaucet(walletAddress)
+    const targetAddress = req.body?.address || (orchestrator.mcpClient?.account ? orchestrator.mcpClient.account.address : '0xf60C1BE48c75E890bF9943C104a0Da5B62A07299')
+    const result = await orchestrator.mcpClient.claimTestnetUsdcFaucet(targetAddress)
     res.json({ ok: true, result })
   } catch (error) {
-    res.status(500).json({ ok: false, error: error.message })
+    res.status(500).json({ ok: false, error: error?.message || 'Faucet claim failed' })
   }
 })
 
 // ─── 9. Audit Logs API ───
 app.get('/api/fleet/logs', async (req, res) => {
   try {
-    const logs = await orchestrator.memoryBank.listRecentLogs(25)
+    const limit = Math.min(Math.max(1, parseInt(req.query.limit, 10) || 25), 100)
+    const logs = await orchestrator.memoryBank.listRecentLogs(limit)
     res.json({ ok: true, count: logs.length, logs })
   } catch (error) {
-    res.status(500).json({ ok: false, error: error.message })
+    res.status(500).json({ ok: false, error: error?.message || 'Failed to retrieve logs' })
   }
 })
 

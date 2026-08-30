@@ -116,14 +116,18 @@ Return ONLY a valid JSON object matching this schema:
             contents: prompt,
           })
           const text = response.text || ''
-          const jsonMatch = text.match(/\{[\s\S]*\}/)
+          const cleanedText = text.replace(/```json/gi, '').replace(/```/g, '').trim()
+          const jsonMatch = cleanedText.match(/\{[\s\S]*\}/)
           if (jsonMatch) {
-            decisionData = JSON.parse(jsonMatch[0])
-            usedModel = modelName
-            break
+            const parsed = JSON.parse(jsonMatch[0])
+            if (parsed && typeof parsed.decision === 'string' && parsed.decision.trim()) {
+              decisionData = parsed
+              usedModel = modelName
+              break
+            }
           }
         } catch (err) {
-          console.warn(`[Strategist] ${modelName} unavailable (${err.message.slice(0, 40)}...), trying next model in cascade...`)
+          console.warn(`[Strategist] ${modelName} unavailable (${err?.message?.slice(0, 40) || 'error'}...), trying next model in cascade...`)
         }
       }
     }
