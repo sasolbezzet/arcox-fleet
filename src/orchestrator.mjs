@@ -1,7 +1,7 @@
 /**
  * ARCOX Fleet Orchestrator
- * Coordinates pure autonomous Gemini decision-making.
- * Stores latest live cycle telemetry directly in memory for instant web updates.
+ * Coordinates pure autonomous Gemini decision-making & MCP runtime dispatching.
+ * Stores rich live cycle telemetry, phase state, and live log ring buffer in memory.
  */
 
 import { ArcoxApiClient } from './protocols/arcox-api-client.mjs'
@@ -24,7 +24,6 @@ export class FleetOrchestrator {
     })
     this.mcpClient = new ArcoxMcpBridge(nativeMcpClient)
 
-
     this.scout = new ScoutAgent({
       apiClient: this.apiClient,
       mcpClient: this.mcpClient,
@@ -43,117 +42,174 @@ export class FleetOrchestrator {
 
     this.isRunning = false
     this.daemonTimer = null
+    this.intervalSeconds = Number(process.env.AUTONOMOUS_INTERVAL_SECONDS) || 60
     this.latestCycleSummary = null
+    this.cycleCount = 0
+    this.currentPhase = 'IDLE'
+    this.activeToolName = null
+    this.nextRunTimestamp = null
+    this.recentLogs = []
+    this.subscribers = new Set()
+
+    this.log('INIT', 'ARCOX Fleet Orchestrator initialized. Connected to Arc Testnet (5042002).')
+  }
+
+  log(tag, message, meta = null) {
+    const entry = {
+      id: `log_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      timestamp: new Date().toISOString(),
+      tag: String(tag).toUpperCase(),
+      message: String(message),
+      meta,
+    }
+    this.recentLogs.push(entry)
+    if (this.recentLogs.length > 150) this.recentLogs.shift()
+
+    // Notify live subscribers (SSE)
+    for (const sub of this.subscribers) {
+      try { sub(entry) } catch {}
+    }
+
+    console.log(`[${entry.tag}] ${entry.message}`)
+  }
+
+  subscribeLogs(callback) {
+    this.subscribers.add(callback)
+    return () => this.subscribers.delete(callback)
   }
 
   /**
    * Run 1 autonomous reasoning & execution cycle
    */
   async runAutonomousCycle(triggerSource = 'SCHEDULED_DAEMON') {
-    console.log('\n================================================================================')
-    console.log(`🚀 ARCOX FLEET: AUTONOMOUS REASONING CYCLE [Trigger: ${triggerSource}]`)
-    console.log(`   Time: ${new Date().toISOString()}`)
-    console.log('   Brain: Google Gemini 3.5 Flash | Execution: Arc Testnet (5042002)')
-    console.log('================================================================================')
-
+    this.cycleCount++
     const cycleId = `cycle_${Date.now()}`
     const startTime = Date.now()
 
-    // 1. Step 1: Pre-Execution Balance Scan
-    console.log('📊 Step 1: [PRE-EXECUTION SCAN] Reading live on-chain balances & governance...')
-    const [initialBalances, mscaStatus, aiRouterStatus] = await Promise.all([
-      this.mcpClient.getWalletBalances(),
-      this.mcpClient.getMscaStatus(),
-      this.mcpClient.getAiRouterStatus(),
-    ])
-    const initialUsdc = initialBalances?.balances?.Arc_Testnet?.balance || '0.00'
-    console.log(`   • Pre-Scan Arc Balance: ${initialUsdc} USDC (Native Gas)`)
-    console.log(`   • AI Compute Runway: $${aiRouterStatus?.unifiedBalance?.totalConfirmedBalance} USDC`)
+    this.log('CYCLE_START', `🚀 Starting Autonomous Cycle #${this.cycleCount} (Trigger: ${triggerSource})`)
+    this.currentPhase = 'PRE_SCAN'
+    this.activeToolName = 'walletBalances'
 
-    // 2. Step 2: Scout Market Snapshot
-    const marketSignal = await this.scout.runScan()
+    try {
+      // 1. Step 1: Pre-Execution Balance Scan
+      this.log('PRE_SCAN', '📊 Step 1: Reading live on-chain balances & governance...')
+      const [initialBalances, mscaStatus, aiRouterStatus] = await Promise.all([
+        this.mcpClient.getWalletBalances(),
+        this.mcpClient.getMscaStatus(),
+        this.mcpClient.getAiRouterStatus(),
+      ])
+      const initialUsdc = initialBalances?.balances?.Arc_Testnet?.balance || '0.00'
+      this.log('PRE_SCAN', `Arc USDC Balance: ${initialUsdc} | AI Runway: $${aiRouterStatus?.unifiedBalance?.totalConfirmedBalance || '0.00'}`)
 
-    // 3. Step 3: Pure Autonomous Reasoning by Gemini
-    const actionPlan = await this.strategist.evaluateAutonomousDecision({
-      walletBalances: initialBalances,
-      mscaStatus,
-      aiRouterStatus,
-      marketSignal,
-    })
+      // 2. Step 2: Scout Market Snapshot
+      this.currentPhase = 'MARKET_SCOUT'
+      this.activeToolName = 'intelGetToken'
+      this.log('SCOUT', '🔍 Step 2: Scout scanning Arc Network for market signals...')
+      const marketSignal = await this.scout.runScan()
+      this.log('SCOUT', `Market Signal: Spread ${marketSignal?.payload?.priceSpread || 'N/A'} on ${marketSignal?.payload?.tokenPair || 'USDC/cirBTC'}`)
 
-    // 4. Step 4: Execution via Viem & ARCOX Router
-    const executionSummary = await this.executor.executeDirective(actionPlan)
+      // 3. Step 3: Pure Autonomous Reasoning by Gemini
+      this.currentPhase = 'AI_REASONING'
+      this.activeToolName = 'geminiReasoning'
+      this.log('STRATEGIST', '🧠 Step 3: Gemini analyzing telemetry against 71 MCP tools catalog...')
+      const actionPlan = await this.strategist.evaluateAutonomousDecision({
+        walletBalances: initialBalances,
+        mscaStatus,
+        aiRouterStatus,
+        marketSignal,
+      })
+      this.log('STRATEGIST', `Decision: [${actionPlan.decision}] (${actionPlan.model}) — "${actionPlan.reasoning?.slice(0, 100)}..."`)
 
-    // 5. Step 5: Post-Execution Reconciliation
-    console.log('\n🔄 Step 5: [POST-EXECUTION RECONCILIATION] Reading updated on-chain balance from Arc RPC...')
-    const [finalBalances, updatedAiStatus] = await Promise.all([
-      this.mcpClient.getWalletBalances(),
-      this.mcpClient.getAiRouterStatus(),
-    ])
-    const finalUsdc = finalBalances?.balances?.Arc_Testnet?.balance || '0.00'
-    const deltaUsdc = (Number(finalUsdc) - Number(initialUsdc)).toFixed(6)
-    
-    console.log(`   • Initial Balance: ${initialUsdc} USDC`)
-    console.log(`   • Final Balance:   ${finalUsdc} USDC (Delta: ${deltaUsdc} USDC)`)
-    console.log(`   • Final AI Compute Balance: $${updatedAiStatus?.unifiedBalance?.totalConfirmedBalance} USDC`)
+      // 4. Step 4: Execution via Viem & ARCOX Router
+      this.currentPhase = 'EXECUTING_MCP'
+      this.activeToolName = actionPlan.decision
+      this.log('EXECUTOR', `⚡ Step 4: Dispatching action [${actionPlan.decision}] to MCP runtime...`)
+      const executionSummary = await this.executor.executeDirective(actionPlan)
+      const res = executionSummary.result || {}
+      const txHash = res.tx || res.txHash || null
+      this.log('EXECUTOR', `Execution Complete! Status: ${res.status || (res.ok ? 'SUCCESS' : 'ERROR')}${txHash ? ` | Tx: ${txHash}` : ''}`)
 
-    const durationMs = Date.now() - startTime
+      // 5. Step 5: Post-Execution Reconciliation
+      this.currentPhase = 'POST_RECONCILIATION'
+      this.activeToolName = 'walletBalances'
+      this.log('RECONCILE', '🔄 Step 5: Reading updated on-chain balances from Arc RPC...')
+      const [finalBalances, updatedAiStatus] = await Promise.all([
+        this.mcpClient.getWalletBalances(),
+        this.mcpClient.getAiRouterStatus(),
+      ])
+      const finalUsdc = finalBalances?.balances?.Arc_Testnet?.balance || '0.00'
+      const deltaUsdc = (Number(finalUsdc) - Number(initialUsdc)).toFixed(6)
+      this.log('RECONCILE', `Initial: ${initialUsdc} USDC ➔ Final: ${finalUsdc} USDC (Delta: ${deltaUsdc} USDC)`)
 
-    const summary = {
-      cycleId,
-      triggerSource,
-      status: 'SUCCESS',
-      durationMs,
-      timestamp: new Date().toISOString(),
-      governance: {
-        mode: mscaStatus.mode,
-        wallet: mscaStatus.walletAddress || mscaStatus.mscaWallet,
-      },
-      balanceTelemetry: {
-        initialBalance: `${initialUsdc} USDC`,
-        finalBalance: `${finalUsdc} USDC`,
-        delta: `${deltaUsdc} USDC`,
-      },
-      autonomousDecision: {
-        decision: actionPlan.decision,
-        reasoning: actionPlan.reasoning,
-        model: actionPlan.model,
-        executionResult: executionSummary.result,
-      },
+      const durationMs = Date.now() - startTime
+
+      const summary = {
+        cycleId,
+        cycleNumber: this.cycleCount,
+        triggerSource,
+        status: 'SUCCESS',
+        durationMs,
+        timestamp: new Date().toISOString(),
+        governance: {
+          mode: mscaStatus.mode || 'EOA_VERIFIED',
+          wallet: mscaStatus.walletAddress || mscaStatus.mscaWallet || this.mcpClient.account?.address || '0xf60C1BE48c75E890bF9943C104a0Da5B62A07299',
+        },
+        balanceTelemetry: {
+          initialBalance: `${initialUsdc} USDC`,
+          finalBalance: `${finalUsdc} USDC`,
+          delta: `${deltaUsdc} USDC`,
+        },
+        marketSignal: marketSignal?.payload,
+        autonomousDecision: {
+          decision: actionPlan.decision,
+          reasoning: actionPlan.reasoning,
+          model: actionPlan.model,
+          actionParams: actionPlan.actionParams,
+          executionResult: executionSummary.result,
+        },
+      }
+
+      this.latestCycleSummary = summary
+
+      await this.memoryBank.recordAuditLog({
+        action: 'AUTONOMOUS_CYCLE_COMPLETE',
+        cycleId,
+        durationMs,
+        summary,
+      })
+
+      this.log('CYCLE_END', `✅ Cycle #${this.cycleCount} finished in ${durationMs}ms [${initialUsdc} ➔ ${finalUsdc} USDC]`)
+      return summary
+    } catch (err) {
+      this.log('ERROR', `Cycle #${this.cycleCount} error: ${err.message}`)
+      throw err
+    } finally {
+      this.currentPhase = 'IDLE'
+      this.activeToolName = null
+      if (this.isRunning) {
+        this.nextRunTimestamp = Date.now() + this.intervalSeconds * 1000
+      }
     }
-
-    // Update real-time memory snapshot
-    this.latestCycleSummary = summary
-
-    await this.memoryBank.recordAuditLog({
-      action: 'AUTONOMOUS_CYCLE_COMPLETE',
-      cycleId,
-      durationMs,
-      summary,
-    })
-
-    console.log('================================================================================')
-    console.log(`✅ CYCLE COMPLETED in ${durationMs}ms [${initialUsdc} -> ${finalUsdc} USDC] | Next scan in 60s`)
-    console.log('================================================================================\n')
-
-    return summary
   }
 
   /**
-   * Start 60-second autonomous polling loop
+   * Start autonomous polling loop
    */
   startAutonomousDaemon(intervalSeconds = 60) {
     if (this.isRunning) return
     this.isRunning = true
+    this.intervalSeconds = intervalSeconds
 
-    console.log(`\n🤖 [Autonomous Daemon Active] Gemini will scan balances every ${intervalSeconds} seconds.`)
+    this.log('DAEMON', `🤖 Autonomous Daemon started. Interval: ${intervalSeconds}s.`)
 
     // Run first cycle immediately
-    this.runAutonomousCycle('DAEMON_STARTUP').catch(err => console.error('[Daemon Startup Error]:', err.message))
+    this.runAutonomousCycle('DAEMON_STARTUP').catch(err => this.log('ERROR', `Daemon startup failed: ${err.message}`))
+
+    this.nextRunTimestamp = Date.now() + intervalSeconds * 1000
 
     this.daemonTimer = setInterval(() => {
       this.runAutonomousCycle('DAEMON_HEARTBEAT').catch(err => {
-        console.error('[Daemon Interval Error]:', err.message)
+        this.log('ERROR', `Daemon interval failed: ${err.message}`)
       })
     }, intervalSeconds * 1000)
   }
@@ -164,6 +220,8 @@ export class FleetOrchestrator {
       this.daemonTimer = null
     }
     this.isRunning = false
-    console.log('[Autonomous Daemon] Stopped.')
+    this.nextRunTimestamp = null
+    this.currentPhase = 'IDLE'
+    this.log('DAEMON', 'Autonomous Daemon stopped.')
   }
 }
